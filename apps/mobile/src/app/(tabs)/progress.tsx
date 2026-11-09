@@ -3,6 +3,7 @@ import { useCallback, useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Body, Card, ErrorView, Loading, Screen, Title, colors } from '../../components/ui';
 import { getProgress } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import { useLoad } from '../../lib/useLoad';
 
 /**
@@ -29,6 +30,7 @@ export default function ProgressScreen() {
     return (
       <Screen>
         <Title>학습 진도</Title>
+        <AccountCard />
         <Card>
           <Body>아직 학습 기록이 없어요.</Body>
           <Body muted>오늘의 단어를 학습하고 퀴즈를 풀면 여기에 진도가 쌓입니다.</Body>
@@ -43,6 +45,7 @@ export default function ProgressScreen() {
   return (
     <Screen>
       <Title>학습 진도</Title>
+      <AccountCard />
 
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Text style={{ fontSize: 34, fontWeight: '800', color: streak ? colors.warn : colors.muted }}>{streak}</Text>
@@ -90,6 +93,23 @@ export default function ProgressScreen() {
         )}
       </Card>
     </Screen>
+  );
+}
+
+/** 익명이면 계정 연결을 권하고, 연결돼 있으면 계정 화면으로 가는 한 줄 */
+function AccountCard() {
+  const { session } = useAuth();
+  const anonymous = session?.user.is_anonymous ?? true;
+  const label = anonymous
+    ? '학습 기록을 Apple/Google 계정에 연결하기'
+    : `계정 연결됨${session?.user.email ? ` · ${session.user.email}` : ''}`;
+  return (
+    <Pressable onPress={() => router.push('/account')} accessibilityRole="button" accessibilityLabel={label}>
+      <Card style={anonymous ? { borderColor: colors.accent } : undefined}>
+        <Body style={{ color: anonymous ? colors.accent : colors.muted, fontWeight: anonymous ? '600' : '400' }}>{label} →</Body>
+        {anonymous && <Body muted style={{ fontSize: 13 }}>지금은 이 기기에만 저장돼요. 연결하면 기기를 바꿔도 이어서 할 수 있어요.</Body>}
+      </Card>
+    </Pressable>
   );
 }
 

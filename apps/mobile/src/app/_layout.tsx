@@ -13,6 +13,8 @@ function Gate() {
       <Stack.Screen name="quiz/[wordId]" options={{ title: '퀴즈' }} />
       <Stack.Screen name="level" options={{ title: '학습 수준', presentation: 'modal' }} />
       <Stack.Screen name="report" options={{ title: '오류 신고', presentation: 'modal' }} />
+      <Stack.Screen name="account" options={{ title: '계정' }} />
+      <Stack.Screen name="auth-callback" options={{ title: '계정 연결' }} />
     </Stack>
   );
 }

@@ -15,6 +15,7 @@ export const supabase = createClient(url || 'http://localhost', key || 'missing'
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: 'pkce', // Apple/Google 계정 연결: 리디렉트로 받은 code 를 앱에서 세션으로 교환 (accountLink.ts)
   },
 });
 

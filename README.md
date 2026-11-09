@@ -69,5 +69,6 @@ http://localhost:3001
 4. ✅ 앱 학습 핵심 (익명 시작, 수준, 오늘의 학습, 퀴즈·재시도, 복습일 계산)
 5. ✅ 간격 반복 복습 (오늘 복습 목록, 완료/미완료, 빈 상태)
 6. ✅ 진도·연속학습·오류 신고 (앱 진도 탭, 뜻·설명·퀴즈 신고, 관리자 처리)
-7. 운영 지표
-8. Claude Design UI 적용 + apple-design 스킬 · 9. 스토어 출시
+7. 운영 지표 → PostHog 에서 보기로 결정, 우선순위 뒤로 (마지막에 진행)
+8. Claude Design UI 적용 + apple-design 스킬 (✅ 먼저 끝낸 부분: Apple/Google 계정 연결 — 설정은 docs/auth-setup.md)
+9. 스토어 출시
