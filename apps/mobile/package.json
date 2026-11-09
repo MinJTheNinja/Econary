@@ -11,6 +11,7 @@
     "expo-blur": "~58.0.5",
     "expo-constants": "~58.0.15",
     "expo-crypto": "~58.0.7",
+    "expo-dev-client": "~58.0.18",
     "expo-font": "~58.0.11",
     "expo-haptics": "~58.0.7",
     "expo-linking": "~58.0.16",
@@ -42,7 +43,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:dev:android": "npx eas-cli@latest build -p android --profile development",
+    "build:dev:ios": "npx eas-cli@latest build -p ios --profile development"
   },
   "private": true,
   "expo": {

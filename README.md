@@ -64,6 +64,23 @@ npm run dev -w @tesat/admin
 
 http://localhost:3001
 
+## 실기기 개발 빌드 (EAS)
+
+`apps/mobile` 에서 실행. Expo Go 대신 `expo-dev-client` 개발 빌드를 쓴다 (`eas.json` 의 `development` 프로필).
+
+```bash
+npx eas-cli@latest login            # expo.dev 계정
+npx eas-cli@latest init             # 최초 1회: app.json 에 projectId 추가
+npx eas-cli@latest env:create --environment development --name EXPO_PUBLIC_SUPABASE_URL --value <값> --visibility plaintext
+npx eas-cli@latest env:create --environment development --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value <값> --visibility plaintext
+npm run build:dev:android           # APK 빌드 → 링크/QR 로 폰에 설치
+npm run mobile                      # (루트에서) 개발 서버, 같은 Wi-Fi 에서 앱이 접속
+```
+
+- `.env` 는 gitignore 라 EAS 서버로 올라가지 않는다 → 위처럼 EAS 환경 변수로 등록 (preview/production 도 각각).
+- iOS 실기기: Apple Developer 유료 계정 + `npx eas-cli@latest device:create` 로 기기 등록 후 `npm run build:dev:ios`.
+- 네이티브 모듈·app.json 을 바꾸면 다시 빌드해야 한다 (JS 변경은 개발 서버로 바로 반영).
+
 ## 진행 단계
 1. ✅ 기반: 스키마·RLS, core 로직, 앱 스켈레톤, 단어 import
 2. ✅ 콘텐츠 파이프라인 (YTN + 한경 → 단어 연결 → 설명·퀴즈 후보 생성)
