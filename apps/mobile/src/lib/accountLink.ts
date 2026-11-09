@@ -82,7 +82,12 @@ async function nativeApple(mode: 'link' | 'signin'): Promise<LinkOutcome> {
 async function browserOAuth(provider: Provider, mode: 'link' | 'signin'): Promise<LinkOutcome> {
   const redirectTo = redirectUrl();
   const web = Platform.OS === 'web';
-  const options = { redirectTo, skipBrowserRedirect: !web };
+  const options = {
+    redirectTo,
+    skipBrowserRedirect: !web,
+    // 브라우저에 로그인된 Google 계정을 자동으로 쓰지 않고 항상 계정 선택 화면을 보여 준다 (여러 계정 중 고를 수 있게)
+    ...(provider === 'google' ? { queryParams: { prompt: 'select_account' } } : {}),
+  };
   const { data, error } =
     mode === 'link'
       ? await supabase.auth.linkIdentity({ provider, options })
