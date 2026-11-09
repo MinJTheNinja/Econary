@@ -2,27 +2,46 @@ import { isAssignmentComplete, studyDate } from '@tesat/core';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef } from 'react';
 import { View } from 'react-native';
-import { getLevels, getMyLevel, getTodayAssignment, getTodayReviews, getWeek, getWords } from '../../lib/api';
+import { getMyPlan, getTodayAssignment, getTodayReviews, getWeek, getWords, type MyPlan } from '../../lib/api';
 import { useLoad } from '../../lib/useLoad';
 import { categoryColor, onCategory, radius, useTheme } from '../../theme';
 import { WeekStrip, WordDeckCard } from '../../ui/deck';
 import { Icon } from '../../ui/Icon';
-import { EmptyState, LargeTitle, Pressy, Skeleton, TabScreen, Txt } from '../../ui/kit';
+import { Banner, DoneCard, EmptyState, LargeTitle, Pressy, Skeleton, TabScreen, Txt } from '../../ui/kit';
 
 async function loadToday() {
-  const [assignments, levels, myLevel, reviews, week] = await Promise.all([
-    getTodayAssignment(), getLevels(), getMyLevel(), getTodayReviews(), getWeek().catch(() => null),
-  ]);
+  // 배정이 계획(get_my_plan)을 읽으므로 배정 먼저
+  const assignments = await getTodayAssignment();
+  const [plan, reviews, week] = await Promise.all([getMyPlan(), getTodayReviews(), getWeek().catch(() => null)]);
   const words = await getWords(assignments.map((a) => a.word_id));
   return {
     items: assignments.map((a) => ({ a, w: words.get(a.word_id) })),
-    level: levels.find((l) => l.level === myLevel),
+    plan,
     reviewsPending: reviews.pending.length,
     week,
   };
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** 'D-39 · 하루 12개' / '하루 10개' / 'D-5 · 복습 기간' */
+function planLabel(p: MyPlan): string {
+  const d = p.daysLeft !== null && p.daysLeft > 0 ? `D-${p.daysLeft} · ` : '';
+  return p.phase === 'review' ? `${d}복습 기간` : `${d}하루 ${p.quota}개`;
+}
+
+function PlanAction({ label }: { label: string }) {
+  const { c } = useTheme();
+  return (
+    <Pressy
+      onPress={() => router.push('/study-plan')}
+      accessibilityLabel={label}
+      style={{ alignSelf: 'flex-start', marginLeft: 30, height: 40, paddingHorizontal: 14, borderRadius: radius.md, borderWidth: 1, borderColor: c.warning, justifyContent: 'center' }}
+    >
+      <Txt variant="subhead" weight="600" color={c.warning}>{label}</Txt>
+    </Pressy>
+  );
+}
 
 /** 오늘의 신규 학습 (PRD 3.2) — '최신 UI' 시안 '오늘' 보드: 단어 카드 덱 + 이번 주 + 복습 바로가기 */
 export default function TodayScreen() {
@@ -55,7 +74,7 @@ export default function TodayScreen() {
   })).length;
   const nextIdx = data.items.findIndex(({ a }) => !a.quiz_completed_at);
   const next = nextIdx >= 0 ? data.items[nextIdx] : null;
-  const level = data.level;
+  const plan = data.plan;
   const openList = () => router.push('/words');
 
   return (
@@ -67,16 +86,31 @@ export default function TodayScreen() {
             <LargeTitle count={total ? `${done}/${total}` : undefined}>오늘의 단어</LargeTitle>
           </View>
           <Pressy
-            onPress={() => router.push('/level')}
-            accessibilityLabel={`학습 수준 ${level?.label ?? ''}, 하루 ${level?.daily_new_count ?? ''}개. 변경`}
+            onPress={() => router.push('/study-plan')}
+            accessibilityLabel={`학습 계획 ${planLabel(plan)}. 변경`}
             style={{ minHeight: 44, justifyContent: 'flex-end', paddingBottom: 6 }}
           >
-            <Txt variant="footnote" weight="500" color={c.accent}>{level?.label ?? '-'} · {level?.daily_new_count ?? '-'}개 (변경)</Txt>
+            <Txt variant="footnote" weight="500" color={c.accent}>{planLabel(plan)} (변경)</Txt>
           </Pressy>
         </View>
       </View>
 
-      {total === 0 ? (
+      {plan.dailyMinutes === null ? (
+        <Banner tone="warning" title="학습 계획을 세워 보세요" body="시험일과 하루 공부 시간을 고르면 매일 배울 단어 수를 맞춰 드려요.">
+          <PlanAction label="계획 세우기" />
+        </Banner>
+      ) : plan.phase === 'open' && plan.daysLeft !== null ? (
+        <Banner tone="warning" title="시험일이 지났어요" body="다음 회차를 고르면 남은 단어로 계획을 다시 세워요.">
+          <PlanAction label="다음 회차 고르기" />
+        </Banner>
+      ) : null}
+
+      {total === 0 && plan.phase === 'review' ? (
+        <DoneCard
+          title={`시험까지 ${plan.daysLeft}일, 마무리 복습 기간이에요`}
+          body="새 단어 없이 지금까지 배운 단어를 복습해요. 복습 탭에서 오늘 볼 단어를 확인하세요."
+        />
+      ) : total === 0 ? (
         <EmptyState icon="bookCheck" tone="success" title="오늘 배정할 새 단어가 없습니다." body="모든 단어를 학습했어요!" />
       ) : next ? (
         <WordDeckCard

@@ -81,3 +81,33 @@ catch { console.log('quiz report needs content id ✓'); }
 try { await db.exec(`insert into content_reports (user_id, word_id, target, reason) values ('44444444-4444-4444-4444-444444444444', ${wid}, 'word_meaning', 'other')`); console.log('FAIL report as other user'); }
 catch { console.log('cannot report as another user ✓'); }
 await db.exec('reset role');
+
+// ───────── 학습 계획 (시험일 + 하루 공부 시간) ─────────
+const pq = async (rem, learned, days, min) => (await q('select * from plan_quota($1,$2,$3,$4)', [rem, learned, days, min]))[0];
+const eq = (label, got, want) => console.log(label, JSON.stringify(got) === JSON.stringify(want) ? '✓' : `FAIL ${JSON.stringify(got)} != ${JSON.stringify(want)}`);
+eq('plan: no exam → capacity', await pq(1000, 0, null, 20), { quota: 20, phase: 'open', learn_days: null });
+eq('plan: exam passed → capacity', await pq(1000, 5, 0, 10), { quota: 10, phase: 'open', learn_days: null });
+eq('plan: spread over learn days', await pq(300, 0, 37, 30), { quota: 10, phase: 'learn', learn_days: 30 });
+eq('plan: capped by time', await pq(3000, 0, 37, 10), { quota: 10, phase: 'learn', learn_days: 30 });
+eq('plan: min 3 a day', await pq(20, 0, 60, 30), { quota: 3, phase: 'learn', learn_days: 53 });
+eq('plan: 60min cap 50', await pq(3000, 0, 20, 60), { quota: 50, phase: 'learn', learn_days: 13 });
+eq('plan: final week review only', await pq(500, 40, 7, 20), { quota: 0, phase: 'review', learn_days: 0 });
+eq('plan: final week but nothing learned', await pq(500, 0, 5, 20), { quota: 20, phase: 'learn', learn_days: 1 });
+
+const U2 = '55555555-5555-5555-5555-555555555555';
+await db.exec(`insert into auth.users values ('${U2}')`);
+const roundId = (await q(`insert into exam_rounds (round, exam_date) values (999, kst_today() + 37) returning id`))[0].id;
+await db.exec(`set test.uid = '${U2}'; set role authenticated;`);
+console.log('learner reads exam rounds:', (await q('select count(*)::int n from exam_rounds'))[0].n >= 1 ? '✓' : 'FAIL');
+try { await db.exec(`insert into exam_rounds (round, exam_date) values (1000, '2027-01-01')`); console.log('FAIL learner wrote exam round'); }
+catch { console.log('learner cannot write exam rounds ✓'); }
+eq('not onboarded → level fallback', (await q('select quota, phase from get_my_plan()'))[0], { quota: 10, phase: 'open' });
+await db.exec(`update profiles set exam_round_id=${roundId}, daily_minutes=10, onboarded_at=now()`);
+try { await db.exec(`update profiles set daily_minutes=15`); console.log('FAIL invalid minutes'); } catch { console.log('invalid daily minutes rejected ✓'); }
+try { await db.exec(`update profiles set role='quality_admin'`); console.log('FAIL role escalation'); } catch { console.log('role still not updatable ✓'); }
+const plan = (await q('select * from get_my_plan()'))[0];
+// 활성 단어 5개, 30일에 나누면 하루 1개 → 최소 3개
+eq('my plan', { quota: plan.quota, phase: plan.phase, days_left: plan.days_left, remaining: plan.remaining, exam_round: plan.exam_round },
+  { quota: 3, phase: 'learn', days_left: 37, remaining: 5, exam_round: 999 });
+console.log('today assignment follows plan (3):', (await q('select * from get_or_create_today_assignment()')).length === 3 ? '✓' : 'FAIL');
+await db.exec('reset role');

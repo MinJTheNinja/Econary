@@ -20,6 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ['/words', '단어 목록', null],
     ['/candidates', '단어 후보', candidates.count ?? 0],
     ['/reports', '오류 신고', reports.count ?? 0],
+    ['/exams', 'TESAT 회차', null],
     ['/runs', '파이프라인', null],
   ];
 

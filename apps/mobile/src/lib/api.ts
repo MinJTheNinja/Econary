@@ -13,10 +13,13 @@ import {
   studyDate,
   weekStart,
   addDays,
+  buildPlan,
   type AssignmentRow,
   type AttemptRow,
   type DayCell,
   type OverallProgress,
+  type Plan,
+  type PlanPhase,
   type ReviewState,
   type ScheduleRow,
   type TodayProgress,
@@ -86,19 +89,91 @@ function checkMaybe<T>(res: { data: T | null; error: { message: string } | null 
   return res.data;
 }
 
-// ───────── 수준 (PRD 3.1) ─────────
+// ───────── 수준 (PRD 3.1) — 학습 계획으로 대체됨. 계획 전 학습자 폴백·옛 화면용 ─────────
 
+/** @deprecated 학습 계획(getMyPlan)을 쓴다 */
 export async function getLevels(): Promise<Level[]> {
   return check(await supabase.from('level_settings').select('level, label, daily_new_count').order('sort_order'));
 }
 
+/** @deprecated 학습 계획(getMyPlan)을 쓴다 */
 export async function getMyLevel(): Promise<string> {
   const row = check<{ level: string }>(await supabase.from('profiles').select('level').single());
   return row.level;
 }
 
+/** @deprecated saveStudyProfile 을 쓴다 */
 export async function setMyLevel(level: string, userId: string): Promise<void> {
   checkMaybe(await supabase.from('profiles').update({ level }).eq('user_id', userId));
+}
+
+// ───────── 학습 계획 (시험일 + 하루 공부 시간) ─────────
+
+export interface ExamRound {
+  id: number;
+  round: number;
+  exam_date: string;
+}
+
+export interface StudyProfile {
+  exam_round_id: number | null;
+  daily_minutes: number | null;
+  onboarded_at: string | null;
+}
+
+/** 오늘 이후 시험이 있는 TESAT 회차 (가까운 순) */
+export async function getExamRounds(): Promise<ExamRound[]> {
+  return check(
+    await supabase.from('exam_rounds').select('id, round, exam_date')
+      .eq('is_active', true).gt('exam_date', studyDate()).order('exam_date'),
+  ) as ExamRound[];
+}
+
+export async function getMyProfile(): Promise<StudyProfile> {
+  return check(await supabase.from('profiles').select('exam_round_id, daily_minutes, onboarded_at').single()) as StudyProfile;
+}
+
+/** 시험 회차·공부 시간 저장. onboarded 면 온보딩 완료 시각도 남긴다. 오늘 이미 배정된 단어는 그대로, 내일부터 적용 */
+export async function saveStudyProfile(
+  userId: string,
+  p: { examRoundId: number | null; dailyMinutes: number; onboarded?: boolean },
+): Promise<void> {
+  checkMaybe(
+    await supabase.from('profiles').update({
+      exam_round_id: p.examRoundId,
+      daily_minutes: p.dailyMinutes,
+      ...(p.onboarded ? { onboarded_at: new Date().toISOString() } : {}),
+    }).eq('user_id', userId),
+  );
+}
+
+export interface MyPlan extends Plan {
+  remaining: number;
+  learned: number;
+  examRound: number | null;
+  examDate: string | null;
+  dailyMinutes: number | null;
+}
+
+/**
+ * 서버가 계산한 오늘의 계획(get_my_plan: 하루 개수·단계) + core buildPlan 으로 완료 예정일·커버율.
+ * override 를 주면 저장 전 선택값으로 미리보기한다 (온보딩·설정 시트).
+ */
+export async function getMyPlan(override?: { examDate: string | null; dailyMinutes: number }): Promise<MyPlan> {
+  const row = (check(await supabase.rpc('get_my_plan')) as {
+    quota: number; phase: PlanPhase; remaining: number; learned: number;
+    exam_round: number | null; exam_date: string | null; daily_minutes: number | null;
+  }[])[0];
+  const examDate = override ? override.examDate : row.exam_date;
+  const dailyMinutes = override ? override.dailyMinutes : row.daily_minutes;
+  const plan = buildPlan({ remaining: row.remaining, learned: row.learned, examDate, dailyMinutes: dailyMinutes ?? 10, today: studyDate() });
+  // 저장된 값 그대로면 하루 개수·단계는 서버 값을 쓴다 (배정과 같은 숫자)
+  const merged = override || row.daily_minutes === null ? plan : { ...plan, quota: row.quota, phase: row.phase };
+  return {
+    ...merged,
+    remaining: row.remaining, learned: row.learned,
+    examRound: override ? null : row.exam_round, examDate, dailyMinutes,
+  };
 }
 
 // ───────── 오늘의 신규 학습 (PRD 3.2) ─────────

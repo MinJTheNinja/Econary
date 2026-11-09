@@ -1,6 +1,6 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { linkAccount, signInExisting, signOut, type LinkOutcome, type Provider } from '../lib/accountLink';
@@ -17,6 +17,8 @@ const NAME: Record<Provider, string> = { apple: 'Apple', google: 'Google' };
 export default function AccountScreen() {
   const { c } = useTheme();
   const { session } = useAuth();
+  // mode=signin: 첫 실행 소개의 '이미 계정이 있어요' — 연결이 아니라 기존 계정으로 로그인
+  const signinMode = useLocalSearchParams<{ mode?: string }>().mode === 'signin';
   const user = session?.user;
   const anonymous = user?.is_anonymous ?? true;
   const identity = (user?.identities ?? []).find((i) => i.provider !== 'anonymous');
@@ -35,6 +37,11 @@ export default function AccountScreen() {
     if (result.status !== 'redirecting' && result.status !== 'cancelled') setOutcome({ ...result, provider });
   };
 
+  // 기존 계정으로 로그인하면 바로 앱으로 (온보딩 여부는 그 계정 프로필을 따른다 — 루트 레이아웃)
+  useEffect(() => {
+    if (signinMode && outcome?.status === 'signed_in') router.replace('/');
+  }, [signinMode, outcome]);
+
   const doSignOut = async () => {
     setBusy('signout');
     await signOut();
@@ -44,7 +51,7 @@ export default function AccountScreen() {
 
   return (
     <PushScreen gap={14}>
-      <View style={{ paddingHorizontal: 4, paddingBottom: 4 }}><LargeTitle>계정</LargeTitle></View>
+      <View style={{ paddingHorizontal: 4, paddingBottom: 4 }}><LargeTitle>{signinMode && anonymous ? '로그인' : '계정'}</LargeTitle></View>
 
       {(outcome?.status === 'linked' || outcome?.status === 'signed_in') && (
         <Banner
@@ -70,7 +77,26 @@ export default function AccountScreen() {
         </Banner>
       )}
 
-      {anonymous ? (
+      {anonymous && signinMode ? (
+        <>
+          <Card style={{ gap: 10 }}>
+            <IconBubble name="user" tone="tint" size={40} />
+            <Txt variant="headline">이전에 연결한 계정으로 로그인하세요</Txt>
+            <Txt variant="subhead" color={c.text2}>
+              Apple 또는 Google 계정에 저장된 학습 기록으로 이어서 학습해요.
+            </Txt>
+          </Card>
+          <View style={{ gap: 12, paddingTop: 6, opacity: busy ? 0.7 : 1 }}>
+            {providers.map((p) =>
+              p === 'apple' ? (
+                <AppleButton key={p} busy={busy === 'apple'} disabled={busy !== null} onPress={() => run('apple', signInExisting)} />
+              ) : (
+                <GoogleButton key={p} busy={busy === 'google'} disabled={busy !== null} onPress={() => run('google', signInExisting)} />
+              ),
+            )}
+          </View>
+        </>
+      ) : anonymous ? (
         <>
           <Card style={{ gap: 10 }}>
             <IconBubble name="user" tone="fill" size={40} />

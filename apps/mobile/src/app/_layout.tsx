@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../lib/auth';
+import { useOnboarded } from '../lib/onboarding';
 import { fontFamily, useTheme } from '../theme';
 import { Launch } from '../ui/Launch';
 
@@ -13,13 +14,17 @@ SplashScreen.setOptions({ fade: true, duration: 200 });
 function Gate() {
   const { c } = useTheme();
   const { session, loading, error, retry } = useAuth();
+  const onboarded = useOnboarded(session?.user.id);
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
 
-  if (loading) return <Launch />;
-  if (error || !session) return <Launch error={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'} onRetry={retry} />;
+  if (error || (!loading && !session)) return <Launch error={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'} onRetry={retry} />;
+  if (onboarded.error) return <Launch error="네트워크 연결을 확인한 뒤 다시 시도해 주세요." onRetry={onboarded.retry} />;
+  if (loading || !session || onboarded.value === null) return <Launch />;
+  // 첫 실행 온보딩(시험 회차·공부 시간)은 익명 학습자에게만. 기존 계정으로 로그인하면 바로 앱으로 — 계획이 없으면 오늘 탭에서 세운다
+  const inApp = onboarded.value || !session.user.is_anonymous;
 
   // 디자인: 화면 push 는 네이티브 스택 전환 그대로. 헤더는 제목 없이 '‹ 이전 화면' 만, 배경은 화면과 같은 색
   const sheet = {
@@ -40,14 +45,20 @@ function Gate() {
         contentStyle: { backgroundColor: c.bg },
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="study/[wordId]" options={{ headerBackTitle: '오늘' }} />
-      <Stack.Screen name="quiz/[wordId]" />
-      <Stack.Screen name="account" options={{ headerBackTitle: '진도' }} />
+      <Stack.Protected guard={inApp} redirectTo="/welcome">
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="study/[wordId]" options={{ headerBackTitle: '오늘' }} />
+        <Stack.Screen name="quiz/[wordId]" />
+        <Stack.Screen name="study-plan" options={{ ...sheet, sheetAllowedDetents: [0.93] }} />
+        <Stack.Screen name="report" options={{ ...sheet, sheetAllowedDetents: [0.93] }} />
+        <Stack.Screen name="words" options={{ ...sheet, sheetAllowedDetents: [0.85] }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!inApp} redirectTo="/">
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
+      </Stack.Protected>
+      {/* 소개 화면의 '이미 계정이 있어요'에서도 열리므로 항상 열 수 있다 */}
+      <Stack.Screen name="account" options={{ headerBackTitle: inApp ? '진도' : '소개' }} />
       <Stack.Screen name="auth-callback" options={{ headerBackTitle: '진도' }} />
-      <Stack.Screen name="level" options={{ ...sheet, sheetAllowedDetents: 'fitToContents' }} />
-      <Stack.Screen name="report" options={{ ...sheet, sheetAllowedDetents: [0.93] }} />
-      <Stack.Screen name="words" options={{ ...sheet, sheetAllowedDetents: [0.85] }} />
     </Stack>
   );
 }

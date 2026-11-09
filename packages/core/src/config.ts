@@ -19,3 +19,17 @@ export const SRS = {
   /** 연속 정답이 이 횟수에 도달하면 복습 졸업 (PRD 5: 최대 복습 횟수 미확정) */
   maxReps: 8,
 } as const;
+
+/**
+ * 학습 계획 (시험일 + 하루 공부 시간 → 하루 신규 단어 수).
+ * supabase/migrations/*_study_plan.sql 의 plan_quota 와 같은 값이어야 한다.
+ */
+export const PLAN = {
+  /** 공부 시간 1분당 신규 단어 수 (복습 포함 대략치) */
+  wordsPerMinute: 1,
+  maxDaily: 50,
+  minDaily: 3,
+  /** 시험 전 마지막 n일은 신규 없이 복습만 */
+  reviewDays: 7,
+  minuteOptions: [10, 20, 30, 60] as readonly number[],
+} as const;
