@@ -1,0 +1,17 @@
+{
+  "name": "tesat-app",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm test -w @tesat/core",
+    "mobile": "npm run start -w @tesat/mobile",
+    "test:db": "node supabase/tests/rls-check.mjs",
+    "db:push": "node supabase/push.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14"
+  }
+}
