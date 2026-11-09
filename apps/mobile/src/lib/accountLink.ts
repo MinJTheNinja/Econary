@@ -26,11 +26,12 @@ export type LinkOutcome =
 
 export const redirectUrl = () => Linking.createURL('auth-callback');
 
-const ALREADY_LINKED = /identity_already_exists|already linked|already been linked|already exists/i;
+// email_exists: 같은 이메일을 다른 방식(다른 공급자·이메일 가입)으로 쓰는 계정이 이미 있다 — 학습자에게는 '이미 연결된 계정'과 같은 상황
+const ALREADY_LINKED = /identity_already_exists|email_exists|already linked|already been linked|already been registered|already exists/i;
 
 /** Supabase 설정 미비로 나는 오류는 학습자가 이해할 수 있는 말로 바꾼다 (설정 방법: docs/auth-setup.md) */
 const SETUP_ERRORS: [RegExp, string][] = [
-  [/manual linking is disabled/i, '계정 연결 기능이 아직 켜져 있지 않아요. 잠시 후 다시 시도해 주세요.'],
+  [/manual[ _]linking(?: is)?[ _]disabled/i, '계정 연결 기능이 아직 켜져 있지 않아요. 잠시 후 다시 시도해 주세요.'],
   [/provider is not enabled|unsupported provider|validation_failed/i, '이 로그인 방식은 아직 준비 중이에요.'],
 ];
 
