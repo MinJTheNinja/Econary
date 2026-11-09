@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         if (e) setError(e.message.includes('Anonymous sign-ins are disabled')
           ? 'Supabase 에서 익명 로그인이 꺼져 있습니다 (Authentication → Sign In / Providers → Allow anonymous sign-ins).'
-          : `로그인하지 못했습니다: ${e.message}`);
+          : (console.warn('[auth]', e.message), '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'));
         else setSession(anon.session);
       }
       if (!cancelled) setLoading(false);
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // onAuthStateChange 콜백 안에서 auth 호출을 await 하면 교착될 수 있어 다음 틱으로 미룬다 (Supabase 권장)
         setTimeout(() => {
           supabase.auth.signInAnonymously().then(({ error: e }) => {
-            if (e) setError(`새로 시작하지 못했습니다: ${e.message}`);
+            if (e) { console.warn('[auth]', e.message); setError('네트워크 연결을 확인한 뒤 다시 시도해 주세요.'); }
             setLoading(false);
           });
         }, 0);

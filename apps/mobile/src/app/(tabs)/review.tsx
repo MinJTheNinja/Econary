@@ -1,38 +1,54 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef } from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { Body, Button, Card, ErrorView, Loading, Screen, Title, colors } from '../../components/ui';
+import { View } from 'react-native';
 import { getTodayReviews } from '../../lib/api';
 import { useLoad } from '../../lib/useLoad';
+import { useTheme } from '../../theme';
+import {
+  Badge, CtaCard, DoneCard, EmptyState, Group, LargeTitle, Row, SectionLabel, Spinner, TabScreen, Txt,
+} from '../../ui/kit';
 
-/**
- * 오늘의 복습 (PRD 5.1): 간격 반복으로 오늘까지 예정된 단어를 퀴즈로 다시 확인한다.
- * 신규 학습과 분리된 흐름이며, 완료/미완료를 구분해 보여준다. 예정 단어가 없으면 신규 학습으로 안내.
- */
+const openReview = (wordId: number) =>
+  router.push({ pathname: '/quiz/[wordId]', params: { wordId: String(wordId), context: 'review' } });
+
+/** 오늘의 복습 (PRD 5.1) — 디자인 '복습' 보드 */
 export default function ReviewScreen() {
+  const { c } = useTheme();
   const { data, error, reload } = useLoad(getTodayReviews, []);
-  // 복습을 풀고 돌아오면 다시 읽는다 (첫 진입은 useLoad 가 이미 불러오므로 건너뜀)
   const focusedOnce = useRef(false);
   useFocusEffect(
     useCallback(() => {
       if (focusedOnce.current) reload();
       focusedOnce.current = true;
-    }, []), // eslint-disable-line react-hooks/exhaustive-deps -- reload 는 매 렌더 새로 만들어지지만 동작은 같다
+    }, []), // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  if (error) return <ErrorView message={`복습 목록을 불러오지 못했습니다.\n${error}`} onRetry={reload} />;
-  if (!data) return <Loading />;
+  if (error) {
+    return (
+      <TabScreen>
+        <EmptyState icon="alertCircle" tone="danger" title="복습 목록을 불러오지 못했어요."
+          body="네트워크 연결을 확인한 뒤 다시 시도해 주세요." action={{ label: '다시 시도', onPress: reload }} />
+      </TabScreen>
+    );
+  }
+  if (!data) {
+    return (
+      <TabScreen>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Spinner color={c.text2} /></View>
+      </TabScreen>
+    );
+  }
 
   if (data.isEmpty) {
     return (
-      <Screen>
-        <Title>오늘의 복습</Title>
-        <Card>
-          <Body>오늘 복습할 단어가 없어요.</Body>
-          <Body muted>퀴즈를 푼 단어는 기억이 흐려질 때쯤 여기에 다시 나타납니다.</Body>
-        </Card>
-        <Button label="오늘의 신규 학습으로" onPress={() => router.navigate('/')} />
-      </Screen>
+      <TabScreen>
+        <View style={{ paddingHorizontal: 4, paddingBottom: 8 }}><LargeTitle>오늘의 복습</LargeTitle></View>
+        <EmptyState
+          icon="refresh" tone="tint" title="오늘 복습할 단어가 없어요."
+          body="퀴즈를 푼 단어는 기억이 흐려질 때쯤 여기에 다시 나타납니다."
+          action={{ label: '오늘의 신규 학습으로', onPress: () => router.navigate('/') }}
+        />
+      </TabScreen>
     );
   }
 
@@ -40,48 +56,48 @@ export default function ReviewScreen() {
   const first = data.pending[0];
 
   return (
-    <Screen>
-      <View style={{ gap: 4 }}>
-        <Title>오늘의 복습 {data.done.length}/{total}</Title>
-        <Body muted>정답이면 다음 복습까지 간격이 늘고, 틀리면 내일 다시 나와요.</Body>
+    <TabScreen>
+      <View style={{ gap: 6, paddingHorizontal: 4, paddingBottom: 8 }}>
+        <LargeTitle count={`${data.done.length}/${total}`}>오늘의 복습</LargeTitle>
+        <Txt variant="subhead" color={c.text2}>정답이면 다음 복습까지 간격이 늘고, 틀리면 내일 다시 나와요.</Txt>
       </View>
 
       {first ? (
-        <Button
-          label={`${data.done.length === 0 ? '복습 시작' : '이어서 복습'} → ${first.term}`}
-          onPress={() => router.push({ pathname: '/quiz/[wordId]', params: { wordId: String(first.wordId), context: 'review' } })}
-        />
+        <CtaCard label={data.done.length === 0 ? '복습 시작' : '이어서 복습'} term={first.term} onPress={() => openReview(first.wordId)} />
       ) : (
-        <Card><Body>오늘 복습을 모두 마쳤어요.</Body></Card>
+        <DoneCard title="오늘 복습을 모두 마쳤어요" />
       )}
 
-      {data.pending.length > 0 && <Body muted style={{ fontSize: 13, fontWeight: '600' }}>남은 복습 {data.pending.length}</Body>}
-      {data.pending.map((r) => (
-        <Pressable
-          key={r.wordId}
-          accessibilityRole="button"
-          accessibilityLabel={`${r.term}, 복습 전`}
-          onPress={() => router.push({ pathname: '/quiz/[wordId]', params: { wordId: String(r.wordId), context: 'review' } })}
-        >
-          <Row term={r.term} status="복습 전" tone={colors.muted} />
-        </Pressable>
-      ))}
+      {data.pending.length > 0 && (
+        <>
+          <SectionLabel>남은 복습 {data.pending.length}</SectionLabel>
+          <Group>
+            {data.pending.map((r, i) => (
+              <Row key={r.wordId} last={i === data.pending.length - 1} onPress={() => openReview(r.wordId)} accessibilityLabel={`${r.term}, 복습 전`}>
+                <Txt style={{ flex: 1 }}>{r.term}</Txt>
+                <Badge label="복습 전" tone="neutral" />
+              </Row>
+            ))}
+          </Group>
+        </>
+      )}
 
-      {data.done.length > 0 && <Body muted style={{ fontSize: 13, fontWeight: '600' }}>완료 {data.done.length}</Body>}
-      {data.done.map((r) => (
-        <View key={r.wordId} accessible accessibilityLabel={`${r.term}, 복습 완료, 다음 복습 ${r.dueDate}`}>
-          <Row term={r.term} status={`완료 · 다음 ${r.dueDate.slice(5).replace('-', '/')}`} tone={colors.ok} />
-        </View>
-      ))}
-    </Screen>
-  );
-}
-
-function Row({ term, status, tone }: { term: string; status: string; tone: string }) {
-  return (
-    <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <Text style={{ fontSize: 17, fontWeight: '600', color: colors.text, flexShrink: 1 }}>{term}</Text>
-      <Text style={{ color: tone, fontSize: 13, fontWeight: '600' }}>{status}</Text>
-    </Card>
+      {data.done.length > 0 && (
+        <>
+          <SectionLabel>완료 {data.done.length}</SectionLabel>
+          <Group>
+            {data.done.map((r, i) => {
+              const next = r.dueDate.slice(5).replace('-', '/');
+              return (
+                <Row key={r.wordId} last={i === data.done.length - 1} accessibilityLabel={`${r.term}, 복습 완료, 다음 복습 ${next}`}>
+                  <Txt style={{ flex: 1 }}>{r.term}</Txt>
+                  <Badge label={`완료 · 다음 ${next}`} tone="success" />
+                </Row>
+              );
+            })}
+          </Group>
+        </>
+      )}
+    </TabScreen>
   );
 }

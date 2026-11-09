@@ -32,7 +32,7 @@ GROQ_MODEL_ARTICLES = os.environ.get("GROQ_MODEL_ARTICLES", "openai/gpt-oss-120b
 GROQ_MODEL_CONTENT = os.environ.get("GROQ_MODEL_CONTENT", GROQ_MODEL_ARTICLES)       # 설명·퀴즈 생성
 GROQ_MODEL_VIDEO = GROQ_MODEL_ARTICLES  # keyword_extractor 호환용 (영상 처리는 사용하지 않음)
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) tesat-vocab-bot/0.1"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) econary-bot/0.1"
 
 # ---- 한국경제신문 RSS ----
 HANKYUNG_RSS_FEEDS = {

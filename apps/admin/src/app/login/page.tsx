@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'; // 환경변수 설정 여부를 요청 
 export default function LoginPage() {
   return (
     <div style={{ maxWidth: 360, margin: '12vh auto', padding: '0 16px' }}>
-      <h1>TESAT 콘텐츠 관리</h1>
+      <h1>Econary 콘텐츠 관리</h1>
       {isConfigured() ? (
         <div className="card">
           <LoginForm />

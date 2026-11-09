@@ -1,4 +1,6 @@
-# TESAT 시사 어휘 학습 앱
+# Econary — TESAT 시사 경제 어휘 학습 앱
+
+Econary 는 economics dictionary 의 줄임말이다.
 
 iOS·Android TESAT 경제·시사 어휘 학습 앱. 기획: `docs/PRD_기능명세서_2026-11-09.xlsx`, `docs/flowchart.webp`.
 미결정 운영 정책: `docs/open-decisions.md`.
@@ -70,5 +72,5 @@ http://localhost:3001
 5. ✅ 간격 반복 복습 (오늘 복습 목록, 완료/미완료, 빈 상태)
 6. ✅ 진도·연속학습·오류 신고 (앱 진도 탭, 뜻·설명·퀴즈 신고, 관리자 처리)
 7. 운영 지표 → PostHog 에서 보기로 결정, 우선순위 뒤로 (마지막에 진행)
-8. Claude Design UI 적용 + apple-design 스킬 (✅ 먼저 끝낸 부분: Apple/Google 계정 연결 — 설정은 docs/auth-setup.md)
+8. ✅ Claude Design UI 적용 (토큰 `apps/mobile/src/theme`, 컴포넌트 `apps/mobile/src/ui`, 아이콘·스플래시, Pretendard) + Apple/Google 계정 연결 (설정은 docs/auth-setup.md)
 9. 스토어 출시

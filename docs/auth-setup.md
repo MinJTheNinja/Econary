@@ -16,7 +16,7 @@
 
 1. **Sign In / Providers → Allow manual linking** 켜기 — 익명 계정에 Apple/Google 을 연결하는 데 필요.
 2. **URL Configuration → Redirect URLs** 에 추가:
-   - `tesatvocab://auth-callback` (설치된 앱)
+   - `econary://auth-callback` (설치된 앱)
    - `http://localhost:8081/auth-callback` (웹 미리보기)
    - Expo Go 로 테스트할 때: `exp://**/--/auth-callback`
 3. Google / Apple 공급자 설정은 아래 2·3번에서 받은 값을 넣는다.
@@ -34,14 +34,14 @@ Supabase 콜백 주소 (Google·Apple 콘솔에 넣을 값): `https://njdrmaosdb
 
 ## 3. Apple (Apple Developer 계정 필요)
 
-1. **Identifiers → App ID** `com.tesat.vocab` 에 *Sign In with Apple* 기능 켜기 (앱의 `ios.bundleIdentifier`).
-2. **Identifiers → Services ID** 하나 만들기 (예: `com.tesat.vocab.web`) → Sign In with Apple 설정
+1. **Identifiers → App ID** `com.econary.app` 에 *Sign In with Apple* 기능 켜기 (앱의 `ios.bundleIdentifier`).
+2. **Identifiers → Services ID** 하나 만들기 (예: `com.econary.app.web`) → Sign In with Apple 설정
    - Domains: `njdrmaosdbsbzileljpl.supabase.co`
    - Return URL: 위 Supabase 콜백 주소
    (Android·웹의 브라우저 로그인에 쓰인다.)
 3. **Keys** → Sign In with Apple 키 생성 → `.p8` 파일, Key ID, Team ID 확보.
 4. Supabase → Providers → Apple:
-   - Client IDs: `com.tesat.vocab,com.tesat.vocab.web` (네이티브 iOS + Services ID). Expo Go 에서 시험하려면 `host.exp.Exponent` 도 추가.
+   - Client IDs: `com.econary.app,com.econary.app.web` (네이티브 iOS + Services ID). Expo Go 에서 시험하려면 `host.exp.Exponent` 도 추가.
    - Secret Key: `.p8` 로 만든 client secret (Supabase 화면의 안내/생성기 사용). **6개월마다 만료되므로 재발급 필요.**
 
 ## 4. 빌드
