@@ -2,6 +2,7 @@
   "expo": {
     "name": "Econary",
     "slug": "econary",
+    "owner": "econary",
     "scheme": "econary",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -80,6 +81,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "45af7fe7-057b-4f2c-9656-56551e5bc4a4"
+      }
     }
   }
 }

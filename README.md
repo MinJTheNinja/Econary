@@ -71,13 +71,13 @@ http://localhost:3001
 ```bash
 npx eas-cli@latest login            # expo.dev 계정
 npx eas-cli@latest init             # 최초 1회: app.json 에 projectId 추가
-npx eas-cli@latest env:create --environment development --name EXPO_PUBLIC_SUPABASE_URL --value <값> --visibility plaintext
-npx eas-cli@latest env:create --environment development --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value <값> --visibility plaintext
+npx eas-cli@latest env:set --name EXPO_PUBLIC_SUPABASE_URL --value <값> --environment development --environment preview --environment production --visibility plaintext
+npx eas-cli@latest env:set --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value <값> --environment development --environment preview --environment production --visibility plaintext
 npm run build:dev:android           # APK 빌드 → 링크/QR 로 폰에 설치
 npm run mobile                      # (루트에서) 개발 서버, 같은 Wi-Fi 에서 앱이 접속
 ```
 
-- `.env` 는 gitignore 라 EAS 서버로 올라가지 않는다 → 위처럼 EAS 환경 변수로 등록 (preview/production 도 각각).
+- `.env` 는 gitignore 라 EAS 서버로 올라가지 않는다 → 위처럼 EAS 환경 변수로 등록 (econary 계정 프로젝트, 세 환경 모두 등록됨).
 - iOS 실기기: Apple Developer 유료 계정 + `npx eas-cli@latest device:create` 로 기기 등록 후 `npm run build:dev:ios`.
 - 네이티브 모듈·app.json 을 바꾸면 다시 빌드해야 한다 (JS 변경은 개발 서버로 바로 반영).
 
