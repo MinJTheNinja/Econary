@@ -4,9 +4,11 @@
  */
 import {
   NEW_REVIEW_STATE,
+  buildTodayReviewList,
   scheduleNextReview,
   studyDate,
   type ReviewState,
+  type ScheduleRow,
 } from '@tesat/core';
 import { supabase } from './supabase';
 
@@ -178,8 +180,48 @@ export async function submitQuiz(
 
 // ───────── 복습 일정 (PRD 5: 퀴즈 결과 → 다음 복습일) ─────────
 
+export interface ReviewItem extends ScheduleRow {
+  term: string;
+}
+
+/**
+ * 오늘의 복습 목록 (PRD 5.1): 예정일이 오늘 이전인 미졸업 단어(미완료) + 오늘 복습 흐름에서 푼 단어(완료).
+ * 신규 학습 퀴즈로 정해진 첫 일정은 '오늘 복습'이 아니므로 완료로 세지 않는다.
+ */
+export async function getTodayReviews(): Promise<{ pending: ReviewItem[]; done: ReviewItem[]; isEmpty: boolean }> {
+  const today = studyDate();
+  const rows = check(
+    await supabase
+      .from('review_schedule')
+      .select('word_id, due_date, graduated, last_reviewed_at, last_context, words(term)')
+      .or(`due_date.lte.${today},last_reviewed_at.gte.${new Date(Date.now() - 2 * 86_400_000).toISOString()}`),
+  ) as unknown as {
+    word_id: number; due_date: string; graduated: boolean; last_reviewed_at: string | null;
+    last_context: 'new' | 'review'; words: { term: string } | null;
+  }[];
+
+  const terms = new Map(rows.map((r) => [r.word_id, r.words?.term ?? '']));
+  const list = buildTodayReviewList(
+    rows.map((r) => ({
+      wordId: r.word_id,
+      dueDate: r.due_date,
+      graduated: r.graduated,
+      lastReviewedDate:
+        r.last_context === 'review' && r.last_reviewed_at ? studyDate(new Date(r.last_reviewed_at)) : null,
+    })),
+    today,
+  );
+  const withTerm = (s: ScheduleRow): ReviewItem => ({ ...s, term: terms.get(s.wordId) ?? '' });
+  return { pending: list.pending.map(withTerm), done: list.done.map(withTerm), isEmpty: list.isEmpty };
+}
+
 /** 확정된 퀴즈 결과로 다음 복습일을 계산해 저장. 실패해도 퀴즈 결과 자체는 이미 서버에 기록돼 있다. */
-export async function recordReview(userId: string, wordId: number, isCorrect: boolean): Promise<void> {
+export async function recordReview(
+  userId: string,
+  wordId: number,
+  isCorrect: boolean,
+  context: 'new' | 'review',
+): Promise<void> {
   const prev = checkMaybe(
     await supabase
       .from('review_schedule')
@@ -187,6 +229,9 @@ export async function recordReview(userId: string, wordId: number, isCorrect: bo
       .eq('word_id', wordId)
       .maybeSingle(),
   ) as { interval_days: number; ease: number; reps: number; lapses: number; graduated: boolean } | null;
+
+  // 신규 학습 퀴즈를 같은 날 다시 풀어도 일정이 또 늘어나지 않도록, 'new' 는 첫 일정만 만든다
+  if (context === 'new' && prev) return;
 
   const state: ReviewState = prev
     ? { intervalDays: prev.interval_days, ease: Number(prev.ease), reps: prev.reps, lapses: prev.lapses, graduated: prev.graduated }
@@ -204,6 +249,7 @@ export async function recordReview(userId: string, wordId: number, isCorrect: bo
       lapses: next.lapses,
       graduated: next.graduated,
       last_reviewed_at: new Date().toISOString(),
+      last_context: context, // 신규 학습 퀴즈는 '오늘 복습 완료'로 세지 않는다
     }),
   );
 }

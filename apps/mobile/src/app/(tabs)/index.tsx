@@ -3,11 +3,12 @@ import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Body, Card, ErrorView, Loading, Screen, Title, colors } from '../../components/ui';
-import { getLevels, getMyLevel, getTodayAssignment, getWords, type Assignment, type Level, type Word } from '../../lib/api';
+import { getLevels, getMyLevel, getTodayAssignment, getTodayReviews, getWords, type Assignment, type Level, type Word } from '../../lib/api';
 
 interface TodayData {
   items: { a: Assignment; w: Word | undefined }[];
   level: Level | undefined;
+  reviewsPending: number;
 }
 
 /** 오늘의 신규 학습 (PRD 3.2): 수준별 배정 단어 목록 → 단어 학습 → 퀴즈 */
@@ -18,11 +19,14 @@ export default function TodayScreen() {
   const load = useCallback(() => {
     setError(null);
     (async () => {
-      const [assignments, levels, myLevel] = await Promise.all([getTodayAssignment(), getLevels(), getMyLevel()]);
+      const [assignments, levels, myLevel, reviews] = await Promise.all([
+        getTodayAssignment(), getLevels(), getMyLevel(), getTodayReviews(),
+      ]);
       const words = await getWords(assignments.map((a) => a.word_id));
       setData({
         items: assignments.map((a) => ({ a, w: words.get(a.word_id) })),
         level: levels.find((l) => l.level === myLevel),
+        reviewsPending: reviews.pending.length,
       });
     })().catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
@@ -51,6 +55,20 @@ export default function TodayScreen() {
           </Pressable>
         </Link>
       </View>
+
+      {data.reviewsPending > 0 && (
+        <Pressable
+          onPress={() => router.navigate('/review')}
+          accessibilityRole="button"
+          accessibilityLabel={`오늘 복습할 단어 ${data.reviewsPending}개. 복습하러 가기`}
+        >
+          <Card style={{ borderColor: colors.warn }}>
+            <Text style={{ color: colors.warn, fontSize: 15, fontWeight: '600' }}>
+              오늘 복습할 단어 {data.reviewsPending}개 → 복습 탭
+            </Text>
+          </Card>
+        </Pressable>
+      )}
 
       {total === 0 ? (
         <Card><Body>오늘 배정할 새 단어가 없습니다. 모든 단어를 학습했어요!</Body></Card>

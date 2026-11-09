@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Body, Button, Card, ErrorView, Loading, Screen, colors } from '../../components/ui';
 import {
-  UnconfirmedError, getQuiz, getTodayAssignment, getWords, recordReview, submitQuiz,
+  UnconfirmedError, getQuiz, getTodayAssignment, getTodayReviews, getWords, recordReview, submitQuiz,
   type Quiz, type QuizResult,
 } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -32,7 +32,7 @@ export default function QuizScreen() {
   const [selected, setSelected] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>({ t: 'answering' });
   const attemptId = useRef<string>(Crypto.randomUUID()); // 이 퀴즈 화면의 시도 하나 = id 하나
-  const reviewSaved = useRef(false);
+  const reviewSaved = useRef<Promise<void> | null>(null); // 이 시도의 복습 일정 저장 (한 번만)
 
   const submit = async () => {
     if (!quiz || selected === null || !session) return;
@@ -41,8 +41,9 @@ export default function QuizScreen() {
       const result = await submitQuiz(quiz, id, selected, attemptId.current, context);
       setPhase({ t: 'result', result });
       if (!reviewSaved.current) {
-        reviewSaved.current = true;
-        recordReview(session.user.id, id, result.isCorrect).catch(() => { reviewSaved.current = false; });
+        reviewSaved.current = recordReview(session.user.id, id, result.isCorrect, context).catch(() => {
+          reviewSaved.current = null; // 일정 저장만 실패: 퀴즈 결과는 서버에 확정돼 있으니 다음 화면 이동은 막지 않는다
+        });
       }
     } catch (e) {
       setPhase({ t: 'unconfirmed', message: e instanceof UnconfirmedError ? e.message : String(e) });
@@ -50,13 +51,20 @@ export default function QuizScreen() {
   };
 
   const goNext = async () => {
+    await reviewSaved.current; // 다음 목록이 방금 저장한 복습 일정을 반영하도록
     try {
+      if (context === 'review') {
+        const next = (await getTodayReviews()).pending.find((r) => r.wordId !== id);
+        router.dismissTo('/review');
+        if (next) router.push({ pathname: '/quiz/[wordId]', params: { wordId: String(next.wordId), context: 'review' } });
+        return;
+      }
       const next = (await getTodayAssignment()).find((a) => !a.quiz_completed_at && a.word_id !== id);
       // 학습·퀴즈 화면이 쌓이지 않도록 목록으로 돌아간 뒤 다음 단어를 연다 (뒤로 = 오늘 목록)
       router.dismissTo('/');
-      if (context === 'new' && next) router.push(`/study/${next.word_id}`);
+      if (next) router.push(`/study/${next.word_id}`);
     } catch {
-      router.dismissTo('/');
+      router.dismissTo(context === 'review' ? '/review' : '/');
     }
   };
 
@@ -69,7 +77,7 @@ export default function QuizScreen() {
 
   return (
     <Screen>
-      <Body muted style={{ fontSize: 13, fontWeight: '600' }}>{quiz.kind === 'content' ? '시사 퀴즈' : '뜻 고르기'}</Body>
+      <Body muted style={{ fontSize: 13, fontWeight: '600' }}>{context === 'review' ? '복습 · ' : ''}{quiz.kind === 'content' ? '시사 퀴즈' : '뜻 고르기'}</Body>
       <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, lineHeight: 28 }}>{quiz.question}</Text>
 
       {texts.map((text, i) => {
@@ -109,7 +117,7 @@ export default function QuizScreen() {
             {!result.isCorrect && <Body>정답: {result.answerText}</Body>}
             {result.explanation && <Body muted>{result.explanation}</Body>}
           </Card>
-          <Button label={context === 'new' ? '다음 단어' : '확인'} onPress={goNext} />
+          <Button label={context === 'new' ? '다음 단어' : '다음 복습'} onPress={goNext} />
         </View>
       ) : (
         <Button
