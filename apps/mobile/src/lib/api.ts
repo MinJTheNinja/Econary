@@ -6,12 +6,16 @@ import {
   NEW_REVIEW_STATE,
   buildTodayReviewList,
   computeOverallProgress,
+  computeDayStatuses,
   computeStreak,
   computeTodayProgress,
   scheduleNextReview,
   studyDate,
+  weekStart,
+  addDays,
   type AssignmentRow,
   type AttemptRow,
+  type DayCell,
   type OverallProgress,
   type ReviewState,
   type ScheduleRow,
@@ -31,6 +35,15 @@ export interface Word {
   english_name: string | null;
   meaning: string;
   importance: number;
+  category: string | null;
+  /** 개념 그림 (없으면 null) */
+  concept: Concept | null;
+}
+
+export interface Concept {
+  title?: string;
+  kind: 'cycle' | 'flow';
+  nodes: string[];
 }
 
 export interface Assignment {
@@ -96,7 +109,7 @@ export async function getTodayAssignment(): Promise<Assignment[]> {
 
 export async function getWords(ids: number[]): Promise<Map<number, Word>> {
   if (!ids.length) return new Map();
-  const rows = check(await supabase.from('words').select('id, term, english_name, meaning, importance').in('id', ids));
+  const rows = check(await supabase.from('words').select('id, term, english_name, meaning, importance, category, concept').in('id', ids));
   return new Map((rows as Word[]).map((w) => [w.id, w]));
 }
 
@@ -231,6 +244,8 @@ export async function getTodayReviews(): Promise<{ pending: ReviewItem[]; done: 
 export interface Progress {
   today: TodayProgress;
   streak: number;
+  /** 최근 5주 (월요일 시작, 35칸) */
+  heatmap: DayCell[];
   overall: OverallProgress;
   wrongWords: { id: number; term: string }[];
 }
@@ -259,9 +274,23 @@ export async function getProgress(): Promise<Progress> {
   return {
     today: computeTodayProgress(assignments, schedule.rows, today),
     streak: computeStreak(assignments, today),
+    heatmap: computeDayStatuses(assignments, addDays(weekStart(today), -28), addDays(weekStart(today), 6), today),
     overall,
     wrongWords: overall.wrongWordIds.slice(0, 50).map((id) => ({ id, term: words.get(id)?.term ?? '' })),
   };
+}
+
+/** 이번 주(월~일) 학습 상태와 연속 학습 일수 — 오늘 탭 주간 스트립 */
+export async function getWeek(): Promise<{ days: DayCell[]; streak: number }> {
+  const today = studyDate();
+  const rows = check(
+    await supabase.from('daily_assignments').select('assign_date, word_id, content_viewed_at, quiz_completed_at'),
+  ) as { assign_date: string; word_id: number; content_viewed_at: string | null; quiz_completed_at: string | null }[];
+  const assignments: AssignmentRow[] = rows.map((a) => ({
+    assignDate: a.assign_date, wordId: a.word_id, contentViewedAt: a.content_viewed_at, quizCompletedAt: a.quiz_completed_at,
+  }));
+  const mon = weekStart(today);
+  return { days: computeDayStatuses(assignments, mon, addDays(mon, 6), today), streak: computeStreak(assignments, today) };
 }
 
 /** 확정된 퀴즈 결과로 다음 복습일을 계산해 저장. 실패해도 퀴즈 결과 자체는 이미 서버에 기록돼 있다. */

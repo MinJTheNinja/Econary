@@ -133,3 +133,40 @@ export function computeOverallProgress(
     wrongWordIds,
   };
 }
+
+/** 하루 학습 상태 (진도 잔디): 신규 모두 완료 / 일부 학습 / 쉼. 미래 날짜는 'future'. */
+export type DayStatus = 'complete' | 'partial' | 'rest' | 'future';
+
+export interface DayCell {
+  date: DateStr;
+  status: DayStatus;
+}
+
+/**
+ * from~to(포함) 날짜별 상태. '일부 학습'은 그날 배정 중 하나라도 뜻 확인이나 퀴즈 제출이 있었던 날.
+ * today 이후는 future.
+ */
+export function computeDayStatuses(
+  allAssignments: AssignmentRow[],
+  from: DateStr,
+  to: DateStr,
+  today: DateStr,
+): DayCell[] {
+  const byDate = new Map<DateStr, AssignmentRow[]>();
+  for (const a of allAssignments) {
+    const list = byDate.get(a.assignDate);
+    if (list) list.push(a);
+    else byDate.set(a.assignDate, [a]);
+  }
+  const cells: DayCell[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    const rows = byDate.get(d) ?? [];
+    let status: DayStatus;
+    if (d > today) status = 'future';
+    else if (isDayComplete(rows)) status = 'complete';
+    else if (rows.some((r) => r.contentViewedAt !== null || r.quizCompletedAt !== null)) status = 'partial';
+    else status = 'rest';
+    cells.push({ date: d, status });
+  }
+  return cells;
+}

@@ -20,6 +20,8 @@ const ICONS = {
   news: { w: 2.2, el: <><Rect x={3} y={4} width={18} height={16} rx={2} /><Path d="M7 9h10M7 13h10M7 17h6" /></> },
   bookCheck: { w: 2, el: <><Path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z" /><Path d="M9 10l2 2 4-4" /></> },
   user: { w: 2, el: <><Circle cx={12} cy={8} r={4} /><Path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></> },
+  list: { w: 2.2, el: <Path d="M5 7h14M5 12h14M5 17h9" /> },
+  chevronDown: { w: 2.5, el: <Path d="M6 9l6 6 6-6" /> },
   spinner: { w: 2.6, el: <Path d="M21 12a9 9 0 1 1-6.2-8.6" /> },
 } as const;
 

@@ -1,3 +1,4 @@
+import { studyDate } from '@tesat/core';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
@@ -7,7 +8,8 @@ import { useAuth } from '../../lib/auth';
 import { useLoad } from '../../lib/useLoad';
 import { spring, useTheme } from '../../theme';
 import { Icon } from '../../ui/Icon';
-import { Card, EmptyState, Group, LargeTitle, Pressy, Row, SectionLabel, Spinner, TabScreen, Txt } from '../../ui/kit';
+import { Heatmap, RingStat } from '../../ui/deck';
+import { Card, EmptyState, LargeTitle, Pressy, Spinner, TabScreen, Txt } from '../../ui/kit';
 
 /** 학습 진도 (PRD 6.1) — 디자인 '진도' 보드 */
 export default function ProgressScreen() {
@@ -54,50 +56,55 @@ export default function ProgressScreen() {
         />
       ) : (
         <>
-          <Card style={{ gap: 6 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }} accessible accessibilityLabel={`${streak}일 연속 학습`}>
-              <Txt variant="display" color={streak ? c.text : c.text2} style={{ fontVariant: ['tabular-nums'] }}>{streak}</Txt>
-              <Txt variant="headline">일 연속 학습</Txt>
+          <Card style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }} accessible accessibilityLabel={`${streak}일 연속 학습`}>
+              <Txt variant="largeTitle" color={streak ? c.text : c.text2} style={{ fontVariant: ['tabular-nums'] }}>{streak}</Txt>
+              <Txt variant="headline" style={{ flex: 1 }}>일 연속 학습</Txt>
+              <Txt variant="caption" color={c.text2}>최근 5주</Txt>
             </View>
-            <Txt variant="subhead" color={c.text2} style={{ fontSize: 14 }}>그날 배정된 새 단어를 모두 마친 날이 이어진 수예요.</Txt>
+            <Heatmap cells={data.heatmap} today={studyDate()} />
           </Card>
 
-          <SectionLabel>오늘</SectionLabel>
-          <Group>
-            <Stat label="신규 학습" value={`${today.newCompleted} / ${today.newTotal}`} />
-            <Stat label="복습" value={`${today.reviewCompleted} / ${today.reviewTotal}`} />
-            <Stat label="남은 학습" value={`${today.remaining}`} color={today.remaining > 0 ? c.warning : undefined} last />
-          </Group>
-
-          <SectionLabel>누적</SectionLabel>
-          <Group>
+          <Card
+            style={{ gap: 10 }}
+          >
             <View
-              style={{ gap: 10, paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: c.separator }}
+              style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}
               accessible
-              accessibilityLabel={`학습한 단어 ${overall.studiedWords}개, 전체의 ${pct}%. 다음 ${milestone}개까지 ${milestone - overall.studiedWords}개 남았어요`}
+              accessibilityLabel={`학습한 단어 ${overall.studiedWords}개, 전체 ${overall.totalWords}개의 ${pct}%. 다음 ${milestone}개까지 ${milestone - overall.studiedWords}개`}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                <Txt variant="callout" style={{ flex: 1 }}>학습한 단어</Txt>
-                <Txt variant="callout" weight="600" style={{ fontVariant: ['tabular-nums'] }}>
-                  {overall.studiedWords.toLocaleString()}개 <Txt variant="callout" weight="500" color={c.text2}>({pct}%)</Txt>
-                </Txt>
-              </View>
-              <ProgressBar ratio={overall.totalWords ? overall.studiedWords / overall.totalWords : 0} />
-              <Txt variant="footnote" weight="400" color={c.text2}>
-                다음 {milestone.toLocaleString()}개까지 {(milestone - overall.studiedWords).toLocaleString()}개 남았어요
-              </Txt>
+              <Txt variant="title" style={{ fontVariant: ['tabular-nums'] }}>{overall.studiedWords.toLocaleString()}</Txt>
+              <Txt variant="subhead" color={c.text2} style={{ flex: 1, fontSize: 14 }}>/ {overall.totalWords.toLocaleString()} 단어 · {pct}%</Txt>
+              <Txt variant="footnote" color={c.accent}>다음 {milestone.toLocaleString()}개까지 {(milestone - overall.studiedWords).toLocaleString()}개</Txt>
             </View>
-            <Stat label="아직 안 배운 단어" value={`${overall.unstudiedWords.toLocaleString()}개`} />
-            <Stat
-              label="퀴즈 정답률"
-              value={overall.accuracy === null ? '-' : `${Math.round(overall.accuracy * 100)}%`}
-              suffix={overall.accuracy === null ? undefined : `(${overall.attempts}회)`}
-              last
-            />
-          </Group>
+            <ProgressBar ratio={overall.totalWords ? overall.studiedWords / overall.totalWords : 0} />
+          </Card>
 
-          <SectionLabel>오답 단어 {wrongWords.length || ''}</SectionLabel>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Card style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 }}>
+              <RingStat ratio={overall.accuracy} size={56} />
+              <View
+                style={{ flex: 1, gap: 2 }}
+                accessible
+                accessibilityLabel={`퀴즈 정답률 ${overall.accuracy === null ? '기록 없음' : `${Math.round(overall.accuracy * 100)}%`}, ${overall.attempts}회`}
+              >
+                <Txt variant="subhead" weight="600" style={{ fontSize: 14 }} numberOfLines={1} adjustsFontSizeToFit>퀴즈 정답률</Txt>
+                <Txt variant="caption" color={c.text2}>{overall.attempts}회</Txt>
+              </View>
+            </Card>
+            <Card style={{ flex: 1, gap: 4 }}>
+              <Txt variant="subhead" weight="600" style={{ fontSize: 14 }}>오늘</Txt>
+              <MiniStat label="신규" value={`${today.newCompleted}/${today.newTotal}`} />
+              <MiniStat label="복습" value={`${today.reviewCompleted}/${today.reviewTotal}`} />
+              <MiniStat label="남은 학습" value={`${today.remaining}`} color={today.remaining > 0 ? c.warning : undefined} />
+            </Card>
+          </View>
+
           <Card style={{ gap: 12, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Txt variant="subhead" weight="600" style={{ flex: 1 }}>오답 단어</Txt>
+              {wrongWords.length ? <Txt variant="subhead" weight="700" color={c.danger}>{wrongWords.length}</Txt> : null}
+            </View>
             {wrongWords.length === 0 ? (
               <Txt variant="subhead" color={c.text2}>최근에 틀린 단어가 없어요.</Txt>
             ) : (
@@ -124,15 +131,13 @@ export default function ProgressScreen() {
   );
 }
 
-function Stat({ label, value, suffix, color, last }: { label: string; value: string; suffix?: string; color?: string; last?: boolean }) {
+function MiniStat({ label, value, color }: { label: string; value: string; color?: string }) {
   const { c } = useTheme();
   return (
-    <Row last={last} minHeight={46} accessibilityLabel={`${label} ${value}${suffix ? ` ${suffix}` : ''}`}>
-      <Txt variant="callout" style={{ flex: 1 }}>{label}</Txt>
-      <Txt variant="callout" weight="600" color={color} style={{ fontVariant: ['tabular-nums'] }}>
-        {value}{suffix ? <Txt variant="callout" weight="500" color={c.text2}>{` ${suffix}`}</Txt> : null}
-      </Txt>
-    </Row>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }} accessible accessibilityLabel={`${label} ${value}`}>
+      <Txt variant="caption" color={c.text2} style={{ flex: 1 }}>{label}</Txt>
+      <Txt variant="caption" weight="600" color={color} style={{ fontVariant: ['tabular-nums'] }}>{value}</Txt>
+    </View>
   );
 }
 

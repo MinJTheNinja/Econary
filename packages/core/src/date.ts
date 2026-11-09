@@ -24,3 +24,9 @@ export function addDays(date: DateStr, days: number): DateStr {
 export function diffDays(a: DateStr, b: DateStr): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 }
+
+/** 그 날짜가 속한 주의 월요일 */
+export function weekStart(date: DateStr): DateStr {
+  const dow = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0=일
+  return addDays(date, -((dow + 6) % 7));
+}

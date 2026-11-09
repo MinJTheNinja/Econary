@@ -47,6 +47,7 @@ function Gate() {
       <Stack.Screen name="auth-callback" options={{ headerBackTitle: '진도' }} />
       <Stack.Screen name="level" options={{ ...sheet, sheetAllowedDetents: 'fitToContents' }} />
       <Stack.Screen name="report" options={{ ...sheet, sheetAllowedDetents: [0.93] }} />
+      <Stack.Screen name="words" options={{ ...sheet, sheetAllowedDetents: [0.85] }} />
     </Stack>
   );
 }

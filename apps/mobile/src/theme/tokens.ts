@@ -48,6 +48,10 @@ export interface Palette {
   googleBg: string;
   googleFg: string;
   googleBorder: string;
+  /** 진도 잔디: 신규 모두 완료 / 일부 학습 / 쉼 */
+  heatFull: string;
+  heatPartial: string;
+  heatRest: string;
 }
 
 export const light: Palette = {
@@ -89,6 +93,9 @@ export const light: Palette = {
   googleBg: '#FFFFFF',
   googleFg: '#1F1F1F',
   googleBorder: '#747775',
+  heatFull: '#3A4FD8',
+  heatPartial: '#C5CCF4',
+  heatRest: '#E5E5EA',
 };
 
 export const dark: Palette = {
@@ -130,7 +137,36 @@ export const dark: Palette = {
   googleBg: '#131314',
   googleFg: '#E3E3E3',
   googleBorder: '#8E918F',
+  heatFull: '#4A5DF0',
+  heatPartial: '#2B3474',
+  heatRest: '#2C2C2E',
 };
+
+/**
+ * 단어 분야 색 (카드 덱·학습 헤더). 라이트/다크 공통 — 흰 글자 대비 AA 이상.
+ * 키는 words.category 실제 값. 모르는 분야·빈 값은 default.
+ */
+export const categoryColors: Record<string, string> = {
+  금융: '#2A3AA8',
+  경영: '#8B3A12',
+  경제: '#1B5378',
+  공공: '#1F6B4F',
+  과학: '#5B2E9E',
+  사회: '#3A4FD8',
+  default: '#3A4FD8',
+};
+export const categoryColor = (category: string | null | undefined) =>
+  categoryColors[category ?? ''] ?? categoryColors.default;
+
+/** 분야 색 위의 글자·칩 */
+export const onCategory = {
+  text: '#FFFFFF',
+  text2: 'rgba(255,255,255,0.78)',
+  chipBg: 'rgba(255,255,255,0.2)',
+  chipDarkBg: 'rgba(0,0,0,0.22)',
+  rings: 'rgba(255,255,255,0.16)',
+  done: '#1F6B34',
+} as const;
 
 /** space.1~8 */
 export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32 } as const;
