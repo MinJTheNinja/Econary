@@ -4,6 +4,10 @@ import { kst } from '@/lib/format';
 import { adminDb } from '@/lib/supabase';
 import { resolveReport } from './actions';
 
+const TARGET: Record<string, string> = {
+  word_meaning: '단어 뜻', explanation: '시사 설명', quiz: '시사 퀴즈', meaning_quiz: '뜻 고르기 퀴즈',
+};
+
 const REASON: Record<string, string> = {
   wrong_meaning: '뜻이 틀림', wrong_answer: '정답이 틀림', outdated: '오래된 정보', typo: '오타', other: '기타',
 };
@@ -14,8 +18,10 @@ interface Report {
   note: string | null;
   status: string;
   created_at: string;
-  content_id: number;
-  words: { term: string; meaning: string } | null;
+  content_id: number | null;
+  target: string;
+  word_id: number;
+  words: { term: string; meaning: string; needs_check: boolean } | null;
   word_contents: { kind: string; body: string; choices: string[] | null; answer_index: number | null; review_status: string } | null;
 }
 
@@ -24,7 +30,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const { status = 'open' } = await searchParams;
   const { data } = await adminDb()
     .from('content_reports')
-    .select('id, reason, note, status, created_at, content_id, words(term, meaning), word_contents(kind, body, choices, answer_index, review_status)')
+    .select('id, reason, note, status, created_at, content_id, target, word_id, words(term, meaning, needs_check), word_contents(kind, body, choices, answer_index, review_status)')
     .eq('status', status)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -42,7 +48,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       {reports.map((r) => (
         <div key={r.id} className="card stack">
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <strong>{r.words?.term} <span className="badge warn">{REASON[r.reason] ?? r.reason}</span></strong>
+            <strong>
+              {r.words?.term} <span className="badge muted">{TARGET[r.target] ?? r.target}</span>{' '}
+              <span className="badge warn">{REASON[r.reason] ?? r.reason}</span>
+              {r.words?.needs_check && <span className="badge warn" style={{ marginLeft: 4 }}>뜻 확인 필요</span>}
+            </strong>
             <span className="muted small">#{r.id} · {kst(r.created_at)}</span>
           </div>
           {r.note && <p style={{ margin: 0 }}>“{r.note}”</p>}
@@ -63,8 +73,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           {status === 'open' && (
             <form action={resolveReport} className="row">
               <input type="hidden" name="id" value={r.id} />
-              <input type="hidden" name="content_id" value={r.content_id} />
-              <label><input type="checkbox" name="exclude_content" /> 이 콘텐츠 게시 중단</label>
+              <input type="hidden" name="content_id" value={r.content_id ?? ''} />
+              <input type="hidden" name="word_id" value={r.word_id} />
+              {r.content_id ? (
+                <label><input type="checkbox" name="exclude_content" /> 이 콘텐츠 게시 중단</label>
+              ) : (
+                <label><input type="checkbox" name="mark_needs_check" /> 단어를 '뜻 확인 필요'로 표시</label>
+              )}
+              <Link href={`/words?q=${encodeURIComponent(r.words?.term ?? '')}`} className="small">단어 뜻 수정 →</Link>
               <button className="primary" name="status" value="reviewed">확인 완료</button>
               <button name="status" value="dismissed">기각</button>
             </form>

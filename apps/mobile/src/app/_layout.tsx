@@ -12,6 +12,7 @@ function Gate() {
       <Stack.Screen name="study/[wordId]" options={{ title: '단어 학습' }} />
       <Stack.Screen name="quiz/[wordId]" options={{ title: '퀴즈' }} />
       <Stack.Screen name="level" options={{ title: '학습 수준', presentation: 'modal' }} />
+      <Stack.Screen name="report" options={{ title: '오류 신고', presentation: 'modal' }} />
     </Stack>
   );
 }

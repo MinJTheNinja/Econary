@@ -4,6 +4,7 @@ import { Body, Button, Card, ErrorView, Loading, Screen, colors } from '../../co
 import { getExplanation, getWords, markViewed } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useLoad } from '../../lib/useLoad';
+import { ReportLink } from '../../components/ReportLink';
 
 const SOURCE: Record<string, string> = { ytn: 'YTN', hankyung: '한국경제', manual: '' };
 
@@ -39,6 +40,7 @@ export default function StudyScreen() {
       <Card>
         <Body muted style={{ fontSize: 13, fontWeight: '600' }}>뜻</Body>
         <Body>{word.meaning}</Body>
+        <ReportLink wordId={word.id} term={word.term} target="word_meaning" label="뜻 오류 신고" />
       </Card>
 
       {explanation && (
@@ -48,6 +50,7 @@ export default function StudyScreen() {
           </Body>
           <Body>{explanation.body}</Body>
           {SOURCE[explanation.source] && <Body muted style={{ fontSize: 12 }}>{SOURCE[explanation.source]} 보도 참고 · 자체 요약</Body>}
+          <ReportLink wordId={word.id} term={word.term} target="explanation" contentId={explanation.id} label="설명 오류 신고" />
         </Card>
       )}
 

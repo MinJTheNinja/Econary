@@ -9,6 +9,7 @@ import {
 } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useLoad } from '../../lib/useLoad';
+import { ReportLink } from '../../components/ReportLink';
 
 type Phase =
   | { t: 'answering' }
@@ -116,6 +117,12 @@ export default function QuizScreen() {
             </Text>
             {!result.isCorrect && <Body>정답: {result.answerText}</Body>}
             {result.explanation && <Body muted>{result.explanation}</Body>}
+            <ReportLink
+              wordId={id}
+              target={quiz.kind === 'content' ? 'quiz' : 'meaning_quiz'}
+              contentId={quiz.kind === 'content' ? quiz.contentId : undefined}
+              label="퀴즈 오류 신고"
+            />
           </Card>
           <Button label={context === 'new' ? '다음 단어' : '다음 복습'} onPress={goNext} />
         </View>

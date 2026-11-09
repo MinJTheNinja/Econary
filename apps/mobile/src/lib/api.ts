@@ -5,10 +5,17 @@
 import {
   NEW_REVIEW_STATE,
   buildTodayReviewList,
+  computeOverallProgress,
+  computeStreak,
+  computeTodayProgress,
   scheduleNextReview,
   studyDate,
+  type AssignmentRow,
+  type AttemptRow,
+  type OverallProgress,
   type ReviewState,
   type ScheduleRow,
+  type TodayProgress,
 } from '@tesat/core';
 import { supabase } from './supabase';
 
@@ -188,31 +195,73 @@ export interface ReviewItem extends ScheduleRow {
  * 오늘의 복습 목록 (PRD 5.1): 예정일이 오늘 이전인 미졸업 단어(미완료) + 오늘 복습 흐름에서 푼 단어(완료).
  * 신규 학습 퀴즈로 정해진 첫 일정은 '오늘 복습'이 아니므로 완료로 세지 않는다.
  */
-export async function getTodayReviews(): Promise<{ pending: ReviewItem[]; done: ReviewItem[]; isEmpty: boolean }> {
-  const today = studyDate();
-  const rows = check(
-    await supabase
-      .from('review_schedule')
-      .select('word_id, due_date, graduated, last_reviewed_at, last_context, words(term)')
-      .or(`due_date.lte.${today},last_reviewed_at.gte.${new Date(Date.now() - 2 * 86_400_000).toISOString()}`),
-  ) as unknown as {
+/**
+ * 복습 일정 행 → core ScheduleRow. lastReviewedDate 는 '복습 흐름'에서 푼 경우만 채운다
+ * (신규 학습 퀴즈로 정해진 첫 일정은 복습 완료가 아님). today 가 있으면 오늘 목록에 필요한 행만 가져온다.
+ */
+async function fetchSchedule(today?: string): Promise<{ rows: ScheduleRow[]; terms: Map<number, string> }> {
+  let query = supabase.from('review_schedule').select('word_id, due_date, graduated, last_reviewed_at, last_context, words(term)');
+  if (today) query = query.or(`due_date.lte.${today},last_reviewed_at.gte.${new Date(Date.now() - 2 * 86_400_000).toISOString()}`);
+  const raw = check(await query) as unknown as {
     word_id: number; due_date: string; graduated: boolean; last_reviewed_at: string | null;
     last_context: 'new' | 'review'; words: { term: string } | null;
   }[];
-
-  const terms = new Map(rows.map((r) => [r.word_id, r.words?.term ?? '']));
-  const list = buildTodayReviewList(
-    rows.map((r) => ({
+  return {
+    terms: new Map(raw.map((r) => [r.word_id, r.words?.term ?? ''])),
+    rows: raw.map((r) => ({
       wordId: r.word_id,
       dueDate: r.due_date,
       graduated: r.graduated,
       lastReviewedDate:
         r.last_context === 'review' && r.last_reviewed_at ? studyDate(new Date(r.last_reviewed_at)) : null,
     })),
-    today,
-  );
+  };
+}
+
+export async function getTodayReviews(): Promise<{ pending: ReviewItem[]; done: ReviewItem[]; isEmpty: boolean }> {
+  const today = studyDate();
+  const { rows, terms } = await fetchSchedule(today);
+  const list = buildTodayReviewList(rows, today);
   const withTerm = (s: ScheduleRow): ReviewItem => ({ ...s, term: terms.get(s.wordId) ?? '' });
   return { pending: list.pending.map(withTerm), done: list.done.map(withTerm), isEmpty: list.isEmpty };
+}
+
+// ───────── 학습 진도·연속 학습 (PRD 6.1) ─────────
+
+export interface Progress {
+  today: TodayProgress;
+  streak: number;
+  overall: OverallProgress;
+  wrongWords: { id: number; term: string }[];
+}
+
+/** 본인의 학습 이력으로 진도를 계산한다. 앱 실행·화면 열람만으로는 완료되지 않는다 (core/progress 규칙). */
+export async function getProgress(): Promise<Progress> {
+  const today = studyDate();
+  const [assignRaw, schedule, attemptRaw, activeCount] = await Promise.all([
+    supabase.from('daily_assignments').select('assign_date, word_id, content_viewed_at, quiz_completed_at'),
+    fetchSchedule(),
+    supabase.from('quiz_attempts').select('word_id, is_correct, submitted_at'),
+    supabase.from('words').select('id', { count: 'exact', head: true }).eq('is_active', true),
+  ]);
+  if (activeCount.error) throw new Error(activeCount.error.message);
+
+  const assignments: AssignmentRow[] = (check(assignRaw) as {
+    assign_date: string; word_id: number; content_viewed_at: string | null; quiz_completed_at: string | null;
+  }[]).map((a) => ({
+    assignDate: a.assign_date, wordId: a.word_id, contentViewedAt: a.content_viewed_at, quizCompletedAt: a.quiz_completed_at,
+  }));
+  const attempts: AttemptRow[] = (check(attemptRaw) as { word_id: number; is_correct: boolean; submitted_at: string }[])
+    .map((a) => ({ wordId: a.word_id, isCorrect: a.is_correct, submittedAt: a.submitted_at }));
+
+  const overall = computeOverallProgress(activeCount.count ?? 0, assignments, attempts);
+  const words = await getWords(overall.wrongWordIds.slice(0, 50));
+  return {
+    today: computeTodayProgress(assignments, schedule.rows, today),
+    streak: computeStreak(assignments, today),
+    overall,
+    wrongWords: overall.wrongWordIds.slice(0, 50).map((id) => ({ id, term: words.get(id)?.term ?? '' })),
+  };
 }
 
 /** 확정된 퀴즈 결과로 다음 복습일을 계산해 저장. 실패해도 퀴즈 결과 자체는 이미 서버에 기록돼 있다. */
@@ -250,6 +299,32 @@ export async function recordReview(
       graduated: next.graduated,
       last_reviewed_at: new Date().toISOString(),
       last_context: context, // 신규 학습 퀴즈는 '오늘 복습 완료'로 세지 않는다
+    }),
+  );
+}
+
+// ───────── 오류 신고 (PRD 7.1) ─────────
+
+export type ReportTarget = 'word_meaning' | 'explanation' | 'quiz' | 'meaning_quiz';
+export type ReportReason = 'wrong_meaning' | 'wrong_answer' | 'outdated' | 'typo' | 'other';
+
+/** 신고 접수. 시사 설명·시사 퀴즈는 contentId 가 필요하고, 뜻·뜻 고르기 퀴즈는 단어만으로 식별한다. */
+export async function submitReport(r: {
+  userId: string;
+  wordId: number;
+  target: ReportTarget;
+  contentId?: number | null;
+  reason: ReportReason;
+  note?: string;
+}): Promise<void> {
+  checkMaybe(
+    await supabase.from('content_reports').insert({
+      user_id: r.userId,
+      word_id: r.wordId,
+      target: r.target,
+      content_id: r.target === 'explanation' || r.target === 'quiz' ? r.contentId : null,
+      reason: r.reason,
+      note: r.note?.trim() ? r.note.trim().slice(0, 500) : null,
     }),
   );
 }

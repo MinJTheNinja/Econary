@@ -72,4 +72,12 @@ const m1 = (await q('select * from submit_meaning_quiz($1,$2,$3,$4)', [mid, perI
 const m2 = (await q('select * from submit_meaning_quiz($1,$2,$3,$4)', [mid, perId, perId, 'new']))[0];
 console.log('meaning submit wrong→false, retry keeps first result:', m1.is_correct === false && m2.already_recorded && m2.is_correct === false ? '✓' : 'FAIL');
 console.log('meaning quiz completes assignment:', (await q(`select quiz_completed_at is not null c from daily_assignments where word_id=${perId}`))[0].c ? '✓' : 'FAIL');
+// 오류 신고 (PRD 7.1)
+await db.exec(`insert into content_reports (user_id, word_id, target, reason, note) values ('${U}', ${perId}, 'word_meaning', 'wrong_meaning', '뜻이 이상해요')`);
+await db.exec(`insert into content_reports (user_id, word_id, content_id, target, reason) values ('${U}', ${wid}, ${quizId}, 'quiz', 'wrong_answer')`);
+console.log('learner can report meaning and quiz:', (await q('select count(*)::int n from content_reports'))[0].n === 2 ? '✓' : 'FAIL');
+try { await db.exec(`insert into content_reports (user_id, word_id, target, reason) values ('${U}', ${wid}, 'quiz', 'other')`); console.log('FAIL quiz report without content'); }
+catch { console.log('quiz report needs content id ✓'); }
+try { await db.exec(`insert into content_reports (user_id, word_id, target, reason) values ('44444444-4444-4444-4444-444444444444', ${wid}, 'word_meaning', 'other')`); console.log('FAIL report as other user'); }
+catch { console.log('cannot report as another user ✓'); }
 await db.exec('reset role');
