@@ -1,4 +1,4 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,8 @@ export default function StudyScreen() {
   const id = Number(wordId);
   const { session } = useAuth();
   const userId = session?.user.id;
+  // 퀴즈를 push 해도 이 화면은 아래에 남아 있으므로, 보일 때만 밝은 상태바를 건다 (아니면 흰 상태바가 밝은 화면에 남는다)
+  const focused = useIsFocused();
   const { data, error, reload } = useLoad(async () => {
     const [words, explanation, today] = await Promise.all([
       getWords([id]), getExplanation(id), getTodayAssignment().catch(() => []),
@@ -55,7 +57,7 @@ export default function StudyScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.surface }}>
-      <StatusBar style="light" />
+      {focused ? <StatusBar style="light" /> : null}
       <Stack.Screen
         options={{
           headerStyle: { backgroundColor: color },
