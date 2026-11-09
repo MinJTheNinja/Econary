@@ -49,13 +49,23 @@ export function parseAuthRedirect(url: string): { code?: string; error?: string 
   return { code: params.get('code') ?? undefined, error: error ?? undefined };
 }
 
+/**
+ * code 는 한 번만 교환할 수 있다. Android 에서는 같은 리디렉트가 openAuthSessionAsync 결과와
+ * auth-callback 딥링크 화면 양쪽으로 들어오므로, 같은 code 는 첫 교환 결과를 함께 쓴다 (두 번째 교환은 'invalid flow state').
+ */
+const exchanges = new Map<string, Promise<LinkOutcome>>();
+
 /** auth-callback 에서 받은 code 를 세션으로 바꾼다 (웹 전체 리디렉트·딥링크 공통) */
 export async function completeAuthRedirect(url: string): Promise<LinkOutcome> {
   const { code, error } = parseAuthRedirect(url);
   if (error) return failure(error);
   if (!code) return { status: 'error', message: '로그인 응답에 인증 코드가 없습니다.' };
-  const { error: e } = await supabase.auth.exchangeCodeForSession(code);
-  return e ? failure(e.message) : { status: 'linked' };
+  let pending = exchanges.get(code);
+  if (!pending) {
+    pending = supabase.auth.exchangeCodeForSession(code).then(({ error: e }) => (e ? failure(e.message) : { status: 'linked' as const }));
+    exchanges.set(code, pending);
+  }
+  return pending;
 }
 
 async function nativeApple(mode: 'link' | 'signin'): Promise<LinkOutcome> {
