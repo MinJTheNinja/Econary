@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { getProgress } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { isToss } from '../../lib/target';
 import { useLoad } from '../../lib/useLoad';
 import { spring, useTheme } from '../../theme';
 import { Icon } from '../../ui/Icon';
@@ -157,12 +158,12 @@ function ProgressBar({ ratio }: { ratio: number }) {
   );
 }
 
-/** 익명이면 계정 연결을 권하고, 연결돼 있으면 조용한 한 줄 */
+/** 익명이면 계정 연결을 권하고, 연결돼 있으면 조용한 한 줄. 토스 미니앱은 계정 연결이 없어 계정 관리(삭제·방침) 한 줄만 */
 function AccountCard() {
   const { c } = useTheme();
   const { session } = useAuth();
   const anonymous = session?.user.is_anonymous ?? true;
-  if (anonymous) {
+  if (anonymous && !isToss) {
     return (
       <Pressy
         onPress={() => router.push('/account')}
@@ -177,7 +178,7 @@ function AccountCard() {
       </Pressy>
     );
   }
-  const label = `계정 연결됨${session?.user.email ? ` · ${session.user.email}` : ''}`;
+  const label = isToss ? '익명 학습 · 계정 관리' : `계정 연결됨${session?.user.email ? ` · ${session.user.email}` : ''}`;
   return (
     <Pressy
       onPress={() => router.push('/account')}

@@ -9,6 +9,7 @@ import {
   type QuizResult,
 } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { isToss } from '../../lib/target';
 import { useLoad } from '../../lib/useLoad';
 import { radius, size, spring, useTheme } from '../../theme';
 import { haptic } from '../../ui/haptics';
@@ -108,7 +109,7 @@ export default function QuizScreen() {
   const submitting = phase.t === 'submitting';
   const locked = submitting || !!result;
   const correctIdx = result ? texts.indexOf(result.answerText) : -1;
-  const kindLabel = `${review ? '복습 · ' : ''}${quiz.kind === 'content' ? '시사 퀴즈' : '뜻 고르기'}`;
+  const kindLabel = `${review ? '복습 · ' : ''}${quiz.kind === 'content' ? '시사 퀴즈' : '뜻 고르기'}${isToss && quiz.kind === 'content' ? ' · AI 초안을 운영자가 검토' : ''}`; // 앱인토스: 생성형 AI 결과물 고지
   const resultNote = result?.explanation ?? (review ? (result?.isCorrect ? '다음 복습까지 간격이 늘어났어요.' : '내일 다시 복습해요.') : null);
 
   const footer = result ? (

@@ -1,9 +1,11 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { useOnboarded } from '../lib/onboarding';
+import { isToss } from '../lib/target';
+import { closeTossView, subscribeTossBack } from '../lib/toss';
 import { fontFamily, useTheme } from '../theme';
 import { Launch } from '../ui/Launch';
 
@@ -18,6 +20,15 @@ function Gate() {
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  // 토스 미니앱: 뒤로 가기는 토스 내비게이션 바 몫. 쌓인 화면이 있으면 뒤로, 첫 화면이면 미니앱 종료 (체크리스트)
+  useEffect(() => {
+    if (!isToss) return;
+    return subscribeTossBack(() => {
+      if (router.canGoBack()) router.back();
+      else void closeTossView();
+    });
   }, []);
 
   if (error || (!loading && !session)) return <Launch error={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'} onRetry={retry} />;
@@ -37,6 +48,8 @@ function Gate() {
   return (
     <Stack
       screenOptions={{
+        // 토스 미니앱은 토스 공통 내비게이션 바를 쓰므로 우리 헤더(뒤로 가기)를 숨긴다 — 겹치면 반려
+        headerShown: !isToss,
         headerTitle: '',
         headerShadowVisible: false,
         headerStyle: { backgroundColor: c.bg },
@@ -66,7 +79,7 @@ function Gate() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <StatusBar style="auto" />
+      {isToss ? null : <StatusBar style="auto" />}
       <Gate />
     </AuthProvider>
   );

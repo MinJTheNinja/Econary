@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReportLink } from '../../components/ReportLink';
 import { getExplanation, getTodayAssignment, getWords, markViewed } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { isToss } from '../../lib/target';
 import { useLoad } from '../../lib/useLoad';
 import { categoryColor, onCategory, useTheme } from '../../theme';
 import { Accordion, CategoryChip, ConceptDiagram, Rings } from '../../ui/deck';
@@ -70,9 +71,17 @@ export default function StudyScreen() {
       {/* 위로 당겼을 때도 헤더 색이 이어지도록 */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320, backgroundColor: color }} />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={{ backgroundColor: color, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40, gap: 10, overflow: 'hidden' }}>
+        <View style={{ backgroundColor: color, paddingHorizontal: 20, paddingTop: isToss ? 16 : 8, paddingBottom: 40, gap: 10, overflow: 'hidden' }}>
           <Rings size={260} style={{ top: -110, right: -90 }} />
-          <CategoryChip label={word.category || '시사 어휘'} onColor />
+          {isToss ? (
+            // 토스 빌드는 헤더를 숨기므로 헤더 오른쪽의 '01/10' 을 여기에
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <CategoryChip label={word.category || '시사 어휘'} onColor />
+              {position ? <Txt variant="subhead" color={onCategory.text2} style={{ fontVariant: ['tabular-nums'] }}>{position}</Txt> : null}
+            </View>
+          ) : (
+            <CategoryChip label={word.category || '시사 어휘'} onColor />
+          )}
           <View style={{ gap: 2 }}>
             <Txt variant="term" color={onCategory.text} accessibilityRole="header">{word.term}</Txt>
             {word.english_name ? <Txt variant="subhead" color={onCategory.text2}>{word.english_name}</Txt> : null}
@@ -110,6 +119,8 @@ export default function StudyScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Txt variant="caption" color={c.text2} style={{ flex: 1 }}>
                     {SOURCE[explanation.source] ? `${SOURCE[explanation.source]} 보도 참고 · 자체 요약` : '자체 요약'}
+                    {/* 앱인토스 정책: 생성형 AI 결과물은 알린다 */}
+                    {isToss ? ' · AI 초안을 운영자가 검토' : ''}
                   </Txt>
                   <ReportLink wordId={word.id} term={word.term} target="explanation" contentId={explanation.id} label="설명 오류 신고" />
                 </View>

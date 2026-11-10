@@ -6,6 +6,7 @@ import { ExamRoundPicker, MinutesPicker, PlanSummary } from '../components/Study
 import { getExamRounds, getMyPlan, saveStudyProfile } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { finishOnboarding } from '../lib/onboarding';
+import { isToss } from '../lib/target';
 import { useLoad } from '../lib/useLoad';
 import { categoryColors, onCategory, radius, useTheme } from '../theme';
 import { haptic } from '../ui/haptics';
@@ -75,6 +76,8 @@ export default function Welcome() {
       {step === 'intro' ? (
         <>
           <Button label="시작하기" onPress={() => go('exam')} />
+          {/* 토스 미니앱은 익명 학습만 (토스 로그인 외 로그인 금지) */}
+          {isToss ? null : (
           <Pressy
             onPress={() => router.push({ pathname: '/account', params: { mode: 'signin' } })}
             accessibilityLabel="이미 계정이 있어요. 로그인하기"
@@ -82,6 +85,7 @@ export default function Welcome() {
           >
             <Txt variant="subhead" color={c.accent} weight="500">이미 계정이 있어요</Txt>
           </Pressy>
+          )}
         </>
       ) : (
         <>

@@ -7,6 +7,8 @@ import Svg, { Path } from 'react-native-svg';
 import { deleteAccount, linkAccount, signInExisting, signOut, type LinkOutcome, type Provider } from '../lib/accountLink';
 import { useAuth } from '../lib/auth';
 import { PRIVACY_URL } from '../lib/links';
+import { isToss } from '../lib/target';
+import { tossOpenURL } from '../lib/toss';
 import { radius, useTheme } from '../theme';
 import { Banner, Button, Card, IconBubble, LargeTitle, Pressy, PushScreen, Row, Spinner, Txt } from '../ui/kit';
 
@@ -28,6 +30,8 @@ export default function AccountScreen() {
   const [busy, setBusy] = useState<Provider | 'signout' | 'delete' | null>(null);
   const [outcome, setOutcome] = useState<(LinkOutcome & { provider: Provider }) | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // 토스 미니앱 WebView 는 window.confirm 지원이 보장되지 않아 화면 안에서 한 번 더 묻는다
+  const [confirming, setConfirming] = useState(false);
 
   // iOS 는 Apple 을 먼저 (App Store 가이드라인 4.8)
   const providers: Provider[] = Platform.OS === 'ios' ? ['apple', 'google'] : ['google', 'apple'];
@@ -67,6 +71,10 @@ export default function AccountScreen() {
     const body = anonymous
       ? '이 기기의 학습 기록(오늘의 단어, 퀴즈, 복습 일정, 학습 계획)이 모두 삭제되고 되돌릴 수 없어요.'
       : '계정에 저장된 학습 기록과 연결된 계정 정보가 모두 삭제되고 되돌릴 수 없어요. 다른 기기에서도 이어서 할 수 없어요.';
+    if (isToss) {
+      setConfirming(true);
+      return;
+    }
     if (Platform.OS === 'web') {
       if (globalThis.confirm?.(`${title}\n\n${body}`)) void doDelete();
       return;
@@ -77,7 +85,30 @@ export default function AccountScreen() {
     ]);
   };
 
-  const deleteSection = (
+  const openPrivacy = async () => {
+    if (isToss && (await tossOpenURL(PRIVACY_URL))) return;
+    await WebBrowser.openBrowserAsync(PRIVACY_URL);
+  };
+
+  const deleteSection = confirming ? (
+    <View style={{ gap: 10, paddingTop: 18 }}>
+      {deleteError ? <Banner tone="danger" title={deleteError} /> : null}
+      <Banner
+        tone="danger"
+        title="계정을 삭제할까요?"
+        body="이 기기의 학습 기록(오늘의 단어, 퀴즈, 복습 일정, 학습 계획)이 모두 삭제되고 되돌릴 수 없어요."
+      />
+      <Button
+        label={busy === 'delete' ? '삭제 중…' : '삭제'}
+        kind="surface"
+        color={busy === 'delete' ? c.text2 : c.danger}
+        disabled={busy !== null}
+        onPress={() => void doDelete()}
+        height={50}
+      />
+      <Button label="취소" kind="tint" disabled={busy !== null} onPress={() => setConfirming(false)} height={50} />
+    </View>
+  ) : (
     <View style={{ gap: 6, paddingTop: 18 }}>
       {deleteError ? <Banner tone="danger" title={deleteError} /> : null}
       <Pressy
@@ -122,7 +153,19 @@ export default function AccountScreen() {
         </Banner>
       )}
 
-      {anonymous && signinMode ? (
+      {isToss ? (
+        // 토스 미니앱: 익명 학습만 (토스 로그인 외의 로그인·계정 연결은 미니앱 정책상 금지)
+        <>
+          <Card style={{ gap: 10 }}>
+            <IconBubble name="user" tone="fill" size={40} />
+            <Txt variant="headline">익명으로 학습하고 있어요</Txt>
+            <Txt variant="subhead" color={c.text2}>
+              학습 기록은 이 기기의 토스 미니앱과 연결되어 저장돼요. 미니앱을 삭제하거나 기기를 바꾸면 기록을 이어서 볼 수 없어요.
+            </Txt>
+          </Card>
+          {deleteSection}
+        </>
+      ) : anonymous && signinMode ? (
         <>
           <Card style={{ gap: 10 }}>
             <IconBubble name="user" tone="tint" size={40} />
@@ -196,7 +239,7 @@ export default function AccountScreen() {
 
       {/* Play 정책: 개인정보처리방침은 앱 안에서도 열 수 있어야 한다 */}
       <Pressy
-        onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)}
+        onPress={() => void openPrivacy()}
         accessibilityRole="link"
         accessibilityLabel="개인정보처리방침 열기"
         style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: signinMode && anonymous ? 12 : 0 }}
