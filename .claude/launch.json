@@ -29,6 +29,12 @@
       "autoPort": false
     },
     {
+      "name": "toss-web",
+      "runtimeExecutable": "C:\\Users\\minjo\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+      "runtimeArgs": ["-m", "http.server", "8091", "--directory", "apps/mobile/dist-toss"],
+      "port": 8091
+    },
+    {
       "name": "site",
       "runtimeExecutable": "C:\\Users\\minjo\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
       "runtimeArgs": ["-m", "http.server", "8090", "--directory", "site"],
