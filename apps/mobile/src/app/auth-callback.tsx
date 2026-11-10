@@ -2,7 +2,7 @@ import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { completeAuthRedirect, lastRedirectProvider, signInExisting, type LinkOutcome } from '../lib/accountLink';
+import { completeAuthRedirect, lastRedirectMode, lastRedirectProvider, signInExisting, type LinkOutcome } from '../lib/accountLink';
 import { useTheme } from '../theme';
 import { Banner, Button, InlineError, LargeTitle, PushScreen, Spinner } from '../ui/kit';
 
@@ -25,7 +25,8 @@ export default function AuthCallback() {
     let cancelled = false;
     completeAuthRedirect(url).then((o) => {
       if (cancelled) return;
-      if (o.status === 'linked') router.replace('/account');
+      // 기존 계정 로그인이면 바로 오늘 탭, 계정 연결이면 계정 화면에서 결과를 보여 준다 (거기에 '홈으로' 버튼이 있다)
+      if (o.status === 'linked') router.replace(lastRedirectMode() === 'signin' ? '/' : '/account');
       else setOutcome(o);
     });
     return () => { cancelled = true; };
@@ -49,7 +50,14 @@ export default function AuthCallback() {
   }
 
   return (
-    <PushScreen footer={<Button label="계정 화면으로" kind={outcome.status === 'already_linked' && provider ? 'tint' : undefined} onPress={() => router.replace('/account')} />}>
+    <PushScreen
+      footer={
+        <View style={{ gap: 8 }}>
+          <Button label="홈으로" kind={outcome.status === 'already_linked' && provider ? 'tint' : undefined} onPress={() => router.replace('/')} />
+          <Button label="계정 화면으로" kind="surface" onPress={() => router.replace('/account')} />
+        </View>
+      }
+    >
       <View style={{ paddingHorizontal: 4, paddingBottom: 4 }}><LargeTitle>계정 연결</LargeTitle></View>
       {outcome.status === 'already_linked' ? (
         <View style={{ gap: 12 }}>

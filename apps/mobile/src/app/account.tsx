@@ -244,6 +244,11 @@ export default function AccountScreen() {
         </>
       )}
 
+      {/* 웹에서 Google/Apple 에 다녀오거나 새로고침하면 계정 화면이 첫 화면이 되어 뒤로 갈 곳이 없다 → 홈으로 나가는 길 */}
+      {!isToss && !router.canGoBack() ? (
+        <Button label="홈으로" kind="tint" onPress={() => router.replace('/')} height={50} />
+      ) : null}
+
       {/* Play 정책: 개인정보처리방침은 앱 안에서도 열 수 있어야 한다 */}
       <Pressy
         onPress={() => void openPrivacy()}

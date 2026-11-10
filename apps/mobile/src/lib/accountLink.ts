@@ -131,17 +131,24 @@ async function nativeGoogle(mode: 'link' | 'signin'): Promise<LinkOutcome> {
 }
 
 // 웹은 페이지 전체가 Google/Apple 로 갔다 돌아오므로, 어느 공급자였는지 auth-callback 에서 알 수 있게 남겨 둔다
-const REDIRECT_PROVIDER_KEY = 'econary.authProvider';
-function rememberRedirectProvider(provider: Provider) {
-  try { globalThis.localStorage?.setItem(REDIRECT_PROVIDER_KEY, provider); } catch {}
+const REDIRECT_KEY = 'econary.authProvider';
+function rememberRedirect(provider: Provider, mode: 'link' | 'signin') {
+  try { globalThis.localStorage?.setItem(REDIRECT_KEY, JSON.stringify({ provider, mode })); } catch {}
+}
+function lastRedirect(): { provider: Provider | null; mode: 'link' | 'signin' } {
+  try {
+    const raw = globalThis.localStorage?.getItem(REDIRECT_KEY) ?? '';
+    const v = (raw.startsWith('{') ? JSON.parse(raw) : { provider: raw }) as { provider?: string; mode?: string };
+    return {
+      provider: v.provider === 'google' || v.provider === 'apple' ? v.provider : null,
+      mode: v.mode === 'signin' ? 'signin' : 'link',
+    };
+  } catch { return { provider: null, mode: 'link' }; }
 }
 /** 웹 리디렉트로 돌아왔을 때 방금 쓴 공급자 (모르면 null) */
-export function lastRedirectProvider(): Provider | null {
-  try {
-    const v = globalThis.localStorage?.getItem(REDIRECT_PROVIDER_KEY);
-    return v === 'google' || v === 'apple' ? v : null;
-  } catch { return null; }
-}
+export const lastRedirectProvider = () => lastRedirect().provider;
+/** 웹 리디렉트가 계정 연결이었는지, 기존 계정 로그인이었는지 (모르면 'link') */
+export const lastRedirectMode = () => lastRedirect().mode;
 
 async function browserOAuth(provider: Provider, mode: 'link' | 'signin'): Promise<LinkOutcome> {
   const redirectTo = redirectUrl();
@@ -158,7 +165,7 @@ async function browserOAuth(provider: Provider, mode: 'link' | 'signin'): Promis
       : await supabase.auth.signInWithOAuth({ provider, options });
   if (error) return failure(error.message);
   if (web) {
-    rememberRedirectProvider(provider);
+    rememberRedirect(provider, mode);
     return { status: 'redirecting' };
   } // supabase-js 가 페이지를 이동시키고 /auth-callback 이 마무리
 
