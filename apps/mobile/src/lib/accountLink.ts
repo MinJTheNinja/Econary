@@ -15,6 +15,7 @@ import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
+import { loadGoogleSignIn } from './googleSignIn';
 import { supabase } from './supabase';
 
 export type Provider = 'apple' | 'google';
@@ -97,7 +98,7 @@ const NATIVE_GOOGLE = Platform.OS === 'android' && GOOGLE_WEB_CLIENT_ID !== '';
 
 async function nativeGoogle(mode: 'link' | 'signin'): Promise<LinkOutcome> {
   // 네이티브 모듈이라 웹 번들에서는 불러오지 않는다
-  const { GoogleOneTapSignIn, isErrorWithCode, isSuccessResponse, statusCodes } = await import('react-native-nitro-google-signin');
+  const { GoogleOneTapSignIn, isErrorWithCode, isSuccessResponse, statusCodes } = await loadGoogleSignIn();
   const rawNonce = Crypto.randomUUID();
   const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
   // Google 에는 해시를 (ID 토큰의 nonce 로 들어감), Supabase 에는 원문을 보낸다 — Apple 과 같은 방식
@@ -168,7 +169,7 @@ export async function signInExisting(provider: Provider): Promise<LinkOutcome> {
 /** 기기의 Google 자격 증명 상태를 비워 다음 로그인 때 같은 계정이 자동으로 쓰이지 않게 한다 (실패해도 계속) */
 async function clearGoogleCredential(): Promise<void> {
   if (!NATIVE_GOOGLE) return;
-  await import('react-native-nitro-google-signin')
+  await loadGoogleSignIn()
     .then(({ GoogleOneTapSignIn }) => GoogleOneTapSignIn.signOut())
     .catch(() => {});
 }
