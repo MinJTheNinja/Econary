@@ -46,19 +46,16 @@ export function CategoryChip({ label, onColor }: { label: string; onColor?: bool
 // ───────── 단어 카드 덱 (오늘 탭) ─────────
 
 export function WordDeckCard({
-  color, behind, chip, position, term, english, status, action, onPress, onPositionPress, accessibilityLabel,
+  color, behind, chip, term, english, action, onPress, accessibilityLabel,
 }: {
   color: string;
   /** 뒤에 겹쳐 보이는 다음 카드 색 (최대 2, 가까운 순) */
   behind: string[];
   chip: string;
-  position: string;
   term: string;
   english?: string | null;
-  status: string;
   action?: string;
   onPress?: () => void;
-  onPositionPress?: () => void;
   accessibilityLabel: string;
 }) {
   const layers = behind.slice(0, 2);
@@ -91,8 +88,7 @@ export function WordDeckCard({
           <Txt variant="term" color={onCategory.text} numberOfLines={2}>{term}</Txt>
           {english ? <Txt variant="subhead" color={onCategory.text2} numberOfLines={1}>{english}</Txt> : null}
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Txt variant="subhead" color={onCategory.text2} style={{ flex: 1, fontSize: 14 }}>{status}</Txt>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: 20 }}>
           {action ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Txt variant="subhead" color={onCategory.text} weight="600" style={{ fontSize: 14 }}>{action}</Txt>
@@ -101,22 +97,6 @@ export function WordDeckCard({
           ) : null}
         </View>
       </Pressy>
-      {/* 카드 버튼 안에 버튼을 넣지 않도록 진행 칩은 카드 위에 겹쳐 둔다 */}
-      <View style={{ position: 'absolute', top: layers.length * 8 + 18, right: 18 }}>
-        <Pressy
-          onPress={onPositionPress}
-          disabled={!onPositionPress}
-          accessibilityLabel={`오늘의 단어 목록 보기, ${position}`}
-          hitSlop={8}
-          style={{
-            flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.pill, paddingHorizontal: 10, minHeight: 28,
-            backgroundColor: onCategory.chipDarkBg, borderWidth: 1, borderColor: onCategory.chipBg,
-          }}
-        >
-          <Txt variant="footnote" color={onCategory.text} style={{ fontVariant: ['tabular-nums'] }}>{position}</Txt>
-          {onPositionPress ? <Icon name="list" color={onCategory.text} size={14} /> : null}
-        </Pressy>
-      </View>
     </View>
   );
 }

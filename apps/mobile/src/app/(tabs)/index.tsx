@@ -11,7 +11,6 @@ import { WeekStrip, WordDeckCard } from '../../ui/deck';
 import { Icon } from '../../ui/Icon';
 import { Banner, DoneCard, EmptyState, LargeTitle, Pressy, Skeleton, TabScreen, Txt } from '../../ui/kit';
 
-const pad2 = (n: number) => String(n).padStart(2, '0');
 
 /** 'D-39 · 하루 12개' / '하루 10개' / 'D-5 · 복습 기간' */
 function planLabel(p: MyPlan): string {
@@ -66,7 +65,6 @@ export default function TodayScreen() {
   const nextIdx = data.items.findIndex(({ a }) => !a.quiz_completed_at);
   const next = nextIdx >= 0 ? data.items[nextIdx] : null;
   const plan = data.plan;
-  const openList = () => router.push('/words');
 
   return (
     <TabScreen>
@@ -108,13 +106,10 @@ export default function TodayScreen() {
           color={categoryColor(next.w?.category)}
           behind={data.items.slice(nextIdx + 1, nextIdx + 3).map(({ w }) => categoryColor(w?.category))}
           chip={next.w?.category || '시사 어휘'}
-          position={`${pad2(nextIdx + 1)} / ${pad2(total)}`}
           term={next.w?.term ?? ''}
           english={next.w?.english_name}
-          status={next.a.content_viewed_at ? '뜻은 봤어요 · 퀴즈 남음' : done ? `${done}개 완료` : '아직 시작 전'}
           action={done || next.a.content_viewed_at ? '이어서 학습' : '학습 시작'}
           onPress={() => router.push(`/study/${next.a.word_id}`)}
-          onPositionPress={openList}
           accessibilityLabel={`${done || next.a.content_viewed_at ? '이어서 학습' : '학습 시작'}: ${next.w?.term ?? ''}, ${nextIdx + 1}번째 단어`}
         />
       ) : (
@@ -122,12 +117,9 @@ export default function TodayScreen() {
           color={onCategory.done}
           behind={[onCategory.done, onCategory.done]}
           chip="완료"
-          position={`${pad2(total)} / ${pad2(total)}`}
           term="오늘 신규 학습을 모두 마쳤어요."
-          status="복습 탭에서 예정된 단어를 확인하세요."
           action="카드로 다시 보기"
           onPress={() => router.push('/cards')}
-          onPositionPress={openList}
           accessibilityLabel="오늘 신규 학습을 모두 마쳤어요. 카드로 다시 보기"
         />
       )}
