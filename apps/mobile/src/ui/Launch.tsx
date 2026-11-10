@@ -32,7 +32,7 @@ const JAMO: Jamo[] = [
  * 앱 실행 화면 (시안 '안1'): 흩어진 자모가 0.8초 동안 모여 '시사 / 어휘'가 된다.
  * 익명 로그인·온보딩 확인이 끝날 때까지 보이고, 실패하면 다시 시도. Reduce Motion 이면 완성된 글자만.
  */
-export function Launch({ error, onRetry }: { error?: string | null; onRetry?: () => void }) {
+export function Launch({ error, onRetry, ready }: { error?: string | null; onRetry?: () => void; /** 오늘의 단어를 다 불러옴 → '준비했어요' */ ready?: boolean }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -73,7 +73,7 @@ export function Launch({ error, onRetry }: { error?: string | null; onRetry?: ()
       {error ? (
         <View style={{ alignSelf: 'stretch' }}><Button label="다시 시도" onPress={() => onRetry?.()} /></View>
       ) : (
-        <Loading />
+        <Loading ready={!!ready} />
       )}
     </View>
   );
@@ -103,17 +103,20 @@ function JamoPiece({ j, i, p, scatter, color }: { j: Jamo; i: number; p: SharedV
   );
 }
 
-/** '오늘의 단어를 모으는 중…' + 차례로 채워지는 점 세 개 */
-function Loading() {
+/** '오늘의 단어를 모으는 중…' + 차례로 채워지는 점 세 개. 다 불러오면 '준비했어요' + 점 셋 모두 */
+function Loading({ ready }: { ready: boolean }) {
   const { c } = useTheme();
-  const [n, setN] = useState(1);
+  const [step, setStep] = useState(1);
   useEffect(() => {
-    const t = setInterval(() => setN((k) => (k % 3) + 1), 450);
+    if (ready) return;
+    const t = setInterval(() => setStep((k) => (k % 3) + 1), 450);
     return () => clearInterval(t);
-  }, []);
+  }, [ready]);
+  const n = ready ? 3 : step;
+  const label = ready ? '오늘의 단어를 준비했어요' : '오늘의 단어를 모으는 중…';
   return (
-    <View accessibilityRole="progressbar" accessibilityLabel="오늘의 단어를 모으는 중" style={{ alignItems: 'center', gap: 10 }}>
-      <Txt variant="footnote" weight="400" color={c.text2}>오늘의 단어를 모으는 중…</Txt>
+    <View accessibilityRole="progressbar" accessibilityLabel={label} style={{ alignItems: 'center', gap: 10 }}>
+      <Txt variant="footnote" weight="400" color={c.text2}>{label}</Txt>
       <View style={{ flexDirection: 'row', gap: 5 }}>
         {[1, 2, 3].map((k) => (
           <View key={k} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: k <= n ? c.accent : c.separator }} />

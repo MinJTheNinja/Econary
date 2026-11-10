@@ -2,25 +2,13 @@ import { isAssignmentComplete, studyDate } from '@tesat/core';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { getMyPlan, getTodayAssignment, getTodayReviews, getWeek, getWords, onPlanSaved, type MyPlan } from '../../lib/api';
+import { onPlanSaved, type MyPlan } from '../../lib/api';
+import { loadToday, takeToday } from '../../lib/today';
 import { useLoad } from '../../lib/useLoad';
 import { categoryColor, onCategory, radius, useTheme } from '../../theme';
 import { WeekStrip, WordDeckCard } from '../../ui/deck';
 import { Icon } from '../../ui/Icon';
 import { Banner, DoneCard, EmptyState, LargeTitle, Pressy, Skeleton, TabScreen, Txt } from '../../ui/kit';
-
-async function loadToday() {
-  // 배정이 계획(get_my_plan)을 읽으므로 배정 먼저
-  const assignments = await getTodayAssignment();
-  const [plan, reviews, week] = await Promise.all([getMyPlan(), getTodayReviews(), getWeek().catch(() => null)]);
-  const words = await getWords(assignments.map((a) => a.word_id));
-  return {
-    items: assignments.map((a) => ({ a, w: words.get(a.word_id) })),
-    plan,
-    reviewsPending: reviews.pending.length,
-    week,
-  };
-}
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -46,7 +34,7 @@ function PlanAction({ label }: { label: string }) {
 /** 오늘의 신규 학습 (PRD 3.2) — '최신 UI' 시안 '오늘' 보드: 단어 카드 덱 + 이번 주 + 복습 바로가기 */
 export default function TodayScreen() {
   const { c } = useTheme();
-  const { data, error, reload } = useLoad(loadToday, []);
+  const { data, error, reload } = useLoad(() => takeToday() ?? loadToday(), []);
   const focusedOnce = useRef(false);
   useFocusEffect(
     useCallback(() => {
