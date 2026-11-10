@@ -29,6 +29,12 @@
       "autoPort": false
     },
     {
+      "name": "site",
+      "runtimeExecutable": "C:\\Users\\minjo\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+      "runtimeArgs": ["-m", "http.server", "8090", "--directory", "site"],
+      "port": 8090
+    },
+    {
       "name": "admin",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

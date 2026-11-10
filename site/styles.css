@@ -1,0 +1,59 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+
+:root {
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --text: #1c1c1e;
+  --text2: #636366;
+  --separator: #d1d1d6;
+  --accent: #3a4fd8;
+  --accent-soft: #e8ebfb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --text: #f2f2f7;
+    --text2: #a1a1a6;
+    --separator: #38383a;
+    --accent: #7d8cff;
+    --accent-soft: #1f2347;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+header.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+header.brand a { display: flex; align-items: center; gap: 10px; color: var(--text2); text-decoration: none; font-weight: 500; }
+.mark { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
+.mark svg { width: 16px; height: 16px; }
+h1 { font-size: 28px; line-height: 1.3; margin: 0 0 6px; letter-spacing: -0.02em; }
+.meta { color: var(--text2); margin: 0 0 24px; font-size: 15px; }
+h2 { font-size: 19px; margin: 36px 0 10px; letter-spacing: -0.01em; }
+h3 { font-size: 16px; margin: 20px 0 6px; }
+p, li { font-size: 16px; }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+.card { background: var(--surface); border-radius: 16px; padding: 18px 20px; margin: 16px 0; }
+.card > :first-child { margin-top: 0; }
+.card > :last-child { margin-bottom: 0; }
+.note { background: var(--accent-soft); border-radius: 12px; padding: 14px 16px; margin: 16px 0; font-size: 15px; }
+.table-wrap { overflow-x: auto; margin: 12px 0; }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--separator); }
+th { color: var(--text2); font-weight: 600; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+.nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.nav a { background: var(--surface); padding: 12px 16px; border-radius: 12px; text-decoration: none; font-weight: 600; }
+footer { margin-top: 48px; color: var(--text2); font-size: 14px; }
