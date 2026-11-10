@@ -2,8 +2,8 @@
 // app.json 은 그대로 두고 이 빌드에서만 baseUrl(/Econary/app)을 넣은 뒤 export → 홈 화면 앱 메타·아이콘·manifest 를 붙인다.
 // 사용: apps/mobile 에서 `node scripts/build-pages.mjs [출력 폴더]` (기본 dist-pages). CI(.github/workflows/pages.yml)가 site/app 으로 빌드.
 import { execSync } from 'node:child_process';
-import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 const BASE = '/Econary/app';
 const OUT = process.argv[2] ?? 'dist-pages';
@@ -71,5 +71,24 @@ html = html
   .replace('</head>', `    ${head}\n  </head>`);
 if (!html.includes('apple-mobile-web-app-capable') || !html.includes('viewport-fit=cover')) fail('index.html 보정에 실패했어요');
 writeFileSync(htmlPath, html);
+
+// 3) 화면 주소마다 같은 index.html 을 둔다 (Pages 는 /auth-callback 을 auth-callback.html 로 연다).
+//    없으면 404 로 가서 ?code= 가 사라진다 — Google 계정 연결이 앱에 반영되지 않던 원인
+const routes = [];
+const walk = (dir, prefix) => {
+  for (const f of readdirSync(dir, { withFileTypes: true })) {
+    if (f.isDirectory()) walk(join(dir, f.name), /^\(.*\)$/.test(f.name) ? prefix : `${prefix}${f.name}/`);
+    else if (/\.tsx?$/.test(f.name) && !/^[_+]/.test(f.name) && !f.name.includes('[')) {
+      const name = f.name.replace(/\.tsx?$/, '');
+      if (name !== 'index' && !prefix.includes('[')) routes.push(`${prefix}${name}`);
+    }
+  }
+};
+walk('src/app', '');
+for (const r of routes) {
+  mkdirSync(dirname(join(OUT, `${r}.html`)), { recursive: true });
+  writeFileSync(join(OUT, `${r}.html`), html);
+}
+console.log(`화면 주소: ${routes.join(', ')}`);
 
 console.log(`\n✔ ${OUT}: ${BASE}/ 용 웹 빌드 + 홈 화면 앱 메타`);

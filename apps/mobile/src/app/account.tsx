@@ -7,6 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import { deleteAccount, linkAccount, signInExisting, signOut, type LinkOutcome, type Provider } from '../lib/accountLink';
 import { useAuth } from '../lib/auth';
 import { PRIVACY_URL } from '../lib/links';
+import { supabase } from '../lib/supabase';
 import { isToss } from '../lib/target';
 import { tossOpenURL } from '../lib/toss';
 import { radius, useTheme } from '../theme';
@@ -32,6 +33,12 @@ export default function AccountScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   // 토스 미니앱 WebView 는 window.confirm 지원이 보장되지 않아 화면 안에서 한 번 더 묻는다
   const [confirming, setConfirming] = useState(false);
+
+  // 아직 익명으로 보이면 서버의 최신 상태로 세션을 새로 받는다 — 다른 곳(웹 리디렉트 등)에서 연결이 끝났는데
+  // 이 기기 세션만 옛날 것이면 '연결 안 됨'으로 보이기 때문. 갱신되면 useAuth 가 새 세션을 받는다
+  useEffect(() => {
+    if (anonymous && session) supabase.auth.refreshSession().catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // iOS 는 Apple 을 먼저 (App Store 가이드라인 4.8)
   const providers: Provider[] = Platform.OS === 'ios' ? ['apple', 'google'] : ['google', 'apple'];
