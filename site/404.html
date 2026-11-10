@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Econary</title>
+  <!-- 앱 웹 빌드(/Econary/app/)는 화면 주소가 바뀌지만 Pages 에는 index.html 하나뿐 — 앱 아래 주소는 앱 첫 화면으로 보낸다 -->
+  <script>
+    if (location.pathname.indexOf('/Econary/app/') === 0) location.replace('/Econary/app/');
+  </script>
+  <link rel="stylesheet" href="/Econary/styles.css">
+</head>
+<body>
+<main>
+  <h1>페이지를 찾을 수 없어요</h1>
+  <p><a href="/Econary/">Econary 홈으로</a></p>
+</main>
+</body>
+</html>
