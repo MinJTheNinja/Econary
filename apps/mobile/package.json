@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@apps-in-toss/web-framework": "^3.10.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.119.0",
     "@tesat/core": "*",
@@ -47,6 +48,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "build:dev:android": "npx eas-cli@latest build -p android --profile development",
+    "build:toss": "node scripts/build-toss.mjs",
     "build:dev:ios": "npx eas-cli@latest build -p ios --profile development"
   },
   "private": true,
