@@ -1,11 +1,11 @@
-# site/ 폴더(개인정보처리방침·계정 삭제 안내)를 GitHub Pages 로 배포한다.
+# site/ 폴더(개인정보처리방침·계정 삭제 안내)와 앱 웹 빌드(site/app → /Econary/app/)를 GitHub Pages 로 배포한다.
 # 저장소 Settings → Pages → Source 를 "GitHub Actions" 로 한 번 설정해야 한다.
 name: Deploy site to GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'apps/mobile/**', 'packages/core/**', 'package-lock.json', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -25,6 +25,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # 앱 웹 빌드 (iPhone '홈 화면에 추가'용). 아래 값은 모든 앱 번들에 들어가는 공개 값 — 비밀 키 아님
+      - name: Build web app
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://njdrmaosdbsbzileljpl.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_OeGs0wgwEfdhvA7Yjzc8Vg_tdl8doMB
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 583399178395-ggrfrv4ubidld51vkvet5jrdo3b6fnuc.apps.googleusercontent.com
+        run: node scripts/build-pages.mjs ../../site/app
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

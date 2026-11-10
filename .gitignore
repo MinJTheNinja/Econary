@@ -19,3 +19,5 @@ supabase/.temp/
 .next/
 next-env.d.ts
 *.tsbuildinfo
+site/app/
+dist-pages/
