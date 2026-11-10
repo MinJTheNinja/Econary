@@ -2,9 +2,11 @@ import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { completeAuthRedirect, type LinkOutcome } from '../lib/accountLink';
+import { completeAuthRedirect, lastRedirectProvider, signInExisting, type LinkOutcome } from '../lib/accountLink';
 import { useTheme } from '../theme';
-import { Banner, Button, LargeTitle, PushScreen, Spinner } from '../ui/kit';
+import { Banner, Button, InlineError, LargeTitle, PushScreen, Spinner } from '../ui/kit';
+
+const NAME = { google: 'Google', apple: 'Apple' } as const;
 
 /**
  * Apple/Google 로그인 후 돌아오는 주소 (redirectUrl()). 웹은 페이지 전체가 여기로 돌아오고,
@@ -14,6 +16,9 @@ export default function AuthCallback() {
   const { c } = useTheme();
   const url = Linking.useLinkingURL();
   const [outcome, setOutcome] = useState<LinkOutcome | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const provider = lastRedirectProvider();
 
   useEffect(() => {
     if (!url) return;
@@ -26,15 +31,36 @@ export default function AuthCallback() {
     return () => { cancelled = true; };
   }, [url]);
 
+  // 이미 다른 학습 기록에 연결된 계정 → 그 계정으로 로그인 (웹은 다시 리디렉트되어 이 화면으로 돌아와 마무리된다)
+  const signIn = async () => {
+    if (!provider) return;
+    setSigningIn(true);
+    setSignInError(null);
+    const o = await signInExisting(provider);
+    if (o.status === 'signed_in' || o.status === 'linked') router.replace('/');
+    else if (o.status !== 'redirecting') {
+      setSigningIn(false);
+      setSignInError(o.status === 'error' ? o.message : '로그인을 마치지 못했어요.');
+    }
+  };
+
   if (!outcome) {
     return <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}><Spinner color={c.text2} /></View>;
   }
 
   return (
-    <PushScreen footer={<Button label="계정 화면으로" onPress={() => router.replace('/account')} />}>
+    <PushScreen footer={<Button label="계정 화면으로" kind={outcome.status === 'already_linked' && provider ? 'tint' : undefined} onPress={() => router.replace('/account')} />}>
       <View style={{ paddingHorizontal: 4, paddingBottom: 4 }}><LargeTitle>계정 연결</LargeTitle></View>
       {outcome.status === 'already_linked' ? (
-        <Banner tone="warning" title="이 계정은 이미 다른 학습 기록에 연결되어 있어요" body="계정 화면에서 그 계정으로 로그인할 수 있어요." />
+        <View style={{ gap: 12 }}>
+          <Banner
+            tone="warning"
+            title="이 계정은 이미 다른 학습 기록에 연결되어 있어요"
+            body="그 계정으로 로그인하면 계정에 저장된 기록으로 이어서 학습해요. 대신 이 기기에서 익명으로 쌓은 기록은 함께 옮겨지지 않아요."
+          />
+          {provider ? <Button label={`${NAME[provider]} 계정으로 로그인`} onPress={signIn} loading={signingIn} /> : null}
+          {signInError ? <InlineError>{signInError}</InlineError> : null}
+        </View>
       ) : (
         <Banner tone="danger" title={outcome.status === 'error' ? `연결하지 못했어요: ${outcome.message}` : '로그인을 마치지 못했어요.'} />
       )}
