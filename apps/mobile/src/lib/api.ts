@@ -10,6 +10,7 @@ import {
   computeStreak,
   computeTodayProgress,
   scheduleNextReview,
+  pullForwardReview,
   studyDate,
   weekStart,
   addDays,
@@ -207,6 +208,58 @@ export async function getExplanation(wordId: number): Promise<Explanation | null
       .limit(1),
   );
   return (rows as Explanation[])[0] ?? null;
+}
+
+/** 여러 단어의 최신 '요즘 뉴스에서' 설명 (플래시카드 뒷면) */
+export async function getExplanations(wordIds: number[]): Promise<Map<number, Explanation>> {
+  if (!wordIds.length) return new Map();
+  const rows = check(
+    await supabase
+      .from('word_contents')
+      .select('id, word_id, body, topic, source')
+      .in('word_id', wordIds)
+      .eq('kind', 'explanation')
+      .order('source_date', { ascending: false, nullsFirst: false }),
+  ) as (Explanation & { word_id: number })[];
+  const out = new Map<number, Explanation>();
+  for (const r of rows) if (!out.has(r.word_id)) out.set(r.word_id, r); // 정렬돼 있으므로 첫 행이 최신
+  return out;
+}
+
+/**
+ * 플래시카드에서 '모르겠어요'를 고른 단어를 내일 복습에 넣는다 (core pullForwardReview).
+ * 기존 일정은 기한만 당기고, 마지막 복습 기록(last_*)은 그대로 둔다.
+ */
+export async function markUnknown(userId: string, wordIds: number[]): Promise<void> {
+  if (!wordIds.length) return;
+  const today = studyDate();
+  const prev = check(
+    await supabase
+      .from('review_schedule')
+      .select('word_id, due_date, interval_days, ease, reps, lapses, graduated')
+      .in('word_id', wordIds),
+  ) as { word_id: number; due_date: string; interval_days: number; ease: number; reps: number; lapses: number; graduated: boolean }[];
+  const byId = new Map(prev.map((r) => [r.word_id, r]));
+  const fresh: Record<string, unknown>[] = [];
+  for (const wordId of wordIds) {
+    const r = byId.get(wordId);
+    const next = pullForwardReview(
+      r ? { dueDate: r.due_date, intervalDays: r.interval_days, ease: Number(r.ease), reps: r.reps, lapses: r.lapses, graduated: r.graduated } : null,
+      today,
+    );
+    if (r) {
+      if (next.dueDate === r.due_date && next.graduated === r.graduated) continue;
+      checkMaybe(
+        await supabase.from('review_schedule').update({ due_date: next.dueDate, graduated: next.graduated }).eq('word_id', wordId),
+      );
+    } else {
+      fresh.push({
+        user_id: userId, word_id: wordId, due_date: next.dueDate, interval_days: next.intervalDays,
+        ease: next.ease, reps: next.reps, lapses: next.lapses, graduated: next.graduated, last_context: 'new',
+      });
+    }
+  }
+  if (fresh.length) checkMaybe(await supabase.from('review_schedule').insert(fresh));
 }
 
 /** 오늘 학습일의 배정 항목에 '콘텐츠 확인' 기록 (학습 완료 조건의 절반) */

@@ -22,6 +22,8 @@ const ICONS = {
   user: { w: 2, el: <><Circle cx={12} cy={8} r={4} /><Path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></> },
   list: { w: 2.2, el: <Path d="M5 7h14M5 12h14M5 17h9" /> },
   chevronDown: { w: 2.5, el: <Path d="M6 9l6 6 6-6" /> },
+  undo: { w: 2.2, el: <><Path d="M9 14L4 9l5-5" /><Path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></> },
+  sliders: { w: 2, el: <><Path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><Circle cx={16} cy={7} r={2} /><Circle cx={10} cy={17} r={2} /></> },
   spinner: { w: 2.6, el: <Path d="M21 12a9 9 0 1 1-6.2-8.6" /> },
 } as const;
 

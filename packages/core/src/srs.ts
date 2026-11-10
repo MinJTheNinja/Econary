@@ -66,3 +66,15 @@ export function scheduleNextReview(prev: ReviewState, correct: boolean, today: D
     dueDate: addDays(today, intervalDays),
   };
 }
+
+/**
+ * 플래시카드에서 '모르겠어요'를 고른 단어를 내일 복습에 넣는다.
+ * 퀴즈가 아니라 자기 평가라서 간격·ease·reps 는 건드리지 않고 기한만 당긴다.
+ * - 일정이 없으면 새 상태로 내일 기한
+ * - 일정이 있으면 기한을 min(기존, 내일)로, 졸업했으면 다시 복습 대상으로
+ */
+export function pullForwardReview(prev: ScheduledReview | null, today: DateStr): ScheduledReview {
+  const tomorrow = addDays(today, 1);
+  if (!prev) return { ...NEW_REVIEW_STATE, dueDate: tomorrow };
+  return { ...prev, graduated: false, dueDate: prev.dueDate < tomorrow ? prev.dueDate : tomorrow };
+}

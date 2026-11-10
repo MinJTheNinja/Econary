@@ -3,7 +3,8 @@ import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTodayAssignment, getWords, type Assignment } from '../lib/api';
 import { useLoad } from '../lib/useLoad';
-import { useTheme } from '../theme';
+import { radius, useTheme } from '../theme';
+import { Icon } from '../ui/Icon';
 import { Group, Pressy, Row, Spinner, Txt } from '../ui/kit';
 
 type State = 'done' | 'quiz' | 'todo';
@@ -36,6 +37,10 @@ export default function WordsSheet() {
     if (router.canGoBack()) router.back();
     router.push(`/study/${wordId}`);
   };
+  const openCards = (mode: 'flip' | 'match') => {
+    if (router.canGoBack()) router.back();
+    router.push({ pathname: '/cards', params: { mode } });
+  };
 
   return (
     <ScrollView style={{ backgroundColor: c.sheet }} contentContainerStyle={{ paddingTop: 20, paddingHorizontal: 16, paddingBottom: insets.bottom + 24, gap: 12 }}>
@@ -53,6 +58,23 @@ export default function WordsSheet() {
           </View>
         ))}
       </View>
+
+      {data && data.length > 0 ? (
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {([['flip', '카드 넘기기', 'refresh'], ['match', '짝 맞추기', 'bars']] as const).map(([mode, label, icon]) => (
+            <View key={mode} style={{ flex: 1 }}>
+              <Pressy
+                onPress={() => openCards(mode)}
+                accessibilityLabel={`${label}로 오늘 단어 연습`}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, borderRadius: radius.md, backgroundColor: c.tint }}
+              >
+                <Icon name={icon} color={c.onTint} size={16} />
+                <Txt variant="subhead" weight="600" color={c.onTint}>{label}</Txt>
+              </Pressy>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {!data ? (
         <View style={{ height: 240, alignItems: 'center', justifyContent: 'center' }}><Spinner color={c.text2} /></View>

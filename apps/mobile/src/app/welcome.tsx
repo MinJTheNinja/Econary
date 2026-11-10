@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ExamRoundPicker, MinutesPicker, PlanSummary } from '../components/StudyPlan';
+import { TESTIMONIALS } from '../content/testimonials';
 import { getExamRounds, getMyPlan, saveStudyProfile } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { finishOnboarding } from '../lib/onboarding';
 import { isToss } from '../lib/target';
 import { useLoad } from '../lib/useLoad';
-import { categoryColors, onCategory, radius, useTheme } from '../theme';
+import { categoryColor, categoryColors, onCategory, radius, useTheme } from '../theme';
 import { haptic } from '../ui/haptics';
 import { Icon, Mark, type IconName } from '../ui/Icon';
 import { Button, InlineError, Pressy, Reveal, Spinner, Txt } from '../ui/kit';
@@ -22,6 +23,8 @@ const CARDS: { badge: string | IconName; color: string; body: string; chip: stri
   { badge: 'bars', color: categoryColors.경영, body: '매일 이어 가면 진도 잔디가 채워져요.', chip: '5일 연속 학습' },
 ];
 const ICON_BADGES: string[] = ['calendar', 'refresh', 'bars'];
+
+const hasReviews = TESTIMONIALS.length > 0;
 
 type Step = 'intro' | 'exam' | 'time' | 'plan';
 const STEPS: Step[] = ['intro', 'exam', 'time', 'plan'];
@@ -119,13 +122,15 @@ export default function Welcome() {
           </View>
           <View style={{ gap: 6 }}>
             <Txt variant="title" style={{ fontSize: 26, lineHeight: 34 }} accessibilityRole="header">
-              {step === 'intro' ? '시험까지 남은 날,\n경제 어휘를 계획대로' : HEAD[step][0]}
+              {step === 'intro' ? (hasReviews ? '하루 10단어로\n뉴스가 들리기 시작해요' : '시험까지 남은 날,\n경제 어휘를 계획대로') : HEAD[step][0]}
             </Txt>
-            <Txt variant="subhead" color={c.text2}>{step === 'intro' ? '하루 10분이면 충분해요.' : HEAD[step][1]}</Txt>
+            <Txt variant="subhead" color={c.text2}>
+              {step === 'intro' ? (hasReviews ? '먼저 써 본 사람들의 이야기예요.' : '하루 10분이면 충분해요.') : HEAD[step][1]}
+            </Txt>
           </View>
         </View>
 
-        {step === 'intro' && <IntroCards />}
+        {step === 'intro' && (hasReviews ? <TestimonialCards /> : <IntroCards />)}
 
         {step === 'exam' && (
           <Reveal style={{ paddingHorizontal: 16 }}>
@@ -163,11 +168,12 @@ function StepDots({ index, count }: { index: number; count: number }) {
   );
 }
 
-function IntroCards() {
+/** 가로로 넘기는 카드 + 페이지 점 (다음 카드가 살짝 보인다) */
+function Carousel({ count, children }: { count: number; children: (cardW: number, i: number) => ReactNode }) {
   const { c } = useTheme();
   const { width } = useWindowDimensions();
   const [page, setPage] = useState(0);
-  const cardW = Math.min(width, 480) - 32 - 40; // 다음 카드가 살짝 보이도록
+  const cardW = Math.min(width, 480) - 32 - 40;
   const gap = 12;
   return (
     <View style={{ gap: 14 }}>
@@ -180,7 +186,66 @@ function IntroCards() {
         scrollEventThrottle={16}
         onScroll={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / (cardW + gap)))}
       >
-        {CARDS.map((card) => (
+        {Array.from({ length: count }, (_, i) => children(cardW, i))}
+      </ScrollView>
+      {count > 1 ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {Array.from({ length: count }, (_, i) => (
+            <View key={i} style={{ width: i === page ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: i === page ? c.accent : c.separator }} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** 시안 '후기 카드': ❝ · 후기 · 도움 된 단어 칩 · 이니셜 원 + 이름/사용 기간 */
+function TestimonialCards() {
+  const { c } = useTheme();
+  return (
+    <Carousel count={TESTIMONIALS.length}>
+      {(cardW, i) => {
+        const t = TESTIMONIALS[i];
+        return (
+          <View
+            key={i}
+            accessible
+            accessibilityLabel={`후기: ${t.quote} ${t.word ? `도움 된 단어 ${t.word}. ` : ''}${t.name}${t.meta ? `, ${t.meta}` : ''}`}
+            style={{ width: cardW, minHeight: 280, backgroundColor: c.surface, borderRadius: 18, padding: 20, gap: 14 }}
+          >
+            <Txt variant="display" color={c.accent} style={{ fontSize: 52, lineHeight: 52, height: 34 }}>❝</Txt>
+            <Txt variant="headline" style={{ lineHeight: 27, flex: 1 }}>{t.quote}</Txt>
+            {t.word ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Txt variant="caption" color={c.text2}>도움 된 단어</Txt>
+                <View style={{ backgroundColor: categoryColor(t.category), borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Txt variant="footnote" color={onCategory.text} style={{ fontSize: 12 }}>{t.word}</Txt>
+                </View>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 0.5, borderTopColor: c.separator, paddingTop: 12 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.tint, alignItems: 'center', justifyContent: 'center' }}>
+                <Txt variant="footnote" color={c.onTint}>{t.name.trim().charAt(0)}</Txt>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt variant="subhead" weight="600" style={{ fontSize: 14 }}>{t.name}</Txt>
+                {t.meta ? <Txt variant="caption" color={c.text2}>{t.meta}</Txt> : null}
+              </View>
+            </View>
+          </View>
+        );
+      }}
+    </Carousel>
+  );
+}
+
+function IntroCards() {
+  const { c } = useTheme();
+  return (
+    <Carousel count={CARDS.length}>
+      {(cardW, i) => {
+        const card = CARDS[i];
+        return (
           <View
             key={card.chip}
             accessible
@@ -199,13 +264,8 @@ function IntroCards() {
               <Txt variant="footnote" color={onCategory.text} style={{ fontSize: 12 }}>{card.chip}</Txt>
             </View>
           </View>
-        ))}
-      </ScrollView>
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {CARDS.map((card, i) => (
-          <View key={card.chip} style={{ width: i === page ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: i === page ? c.accent : c.separator }} />
-        ))}
-      </View>
-    </View>
+        );
+      }}
+    </Carousel>
   );
 }

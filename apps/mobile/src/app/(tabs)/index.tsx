@@ -136,8 +136,10 @@ export default function TodayScreen() {
           position={`${pad2(total)} / ${pad2(total)}`}
           term="오늘 신규 학습을 모두 마쳤어요."
           status="복습 탭에서 예정된 단어를 확인하세요."
+          action="카드로 다시 보기"
+          onPress={() => router.push('/cards')}
           onPositionPress={openList}
-          accessibilityLabel="오늘 신규 학습을 모두 마쳤어요. 복습 탭에서 예정된 단어를 확인하세요."
+          accessibilityLabel="오늘 신규 학습을 모두 마쳤어요. 카드로 다시 보기"
         />
       )}
 
