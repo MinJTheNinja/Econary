@@ -7,7 +7,7 @@
 | 플랫폼 | Apple | Google |
 |---|---|---|
 | iOS | 네이티브 'Apple로 로그인' (ID 토큰) | 브라우저 OAuth |
-| Android | 브라우저 OAuth | 브라우저 OAuth |
+| Android | 브라우저 OAuth | 네이티브 계정 선택 창 (ID 토큰, `react-native-nitro-google-signin`) |
 | 웹 (개발 미리보기) | 페이지 이동 OAuth → `/auth-callback` | 같음 |
 
 아래 설정을 마치기 전에는 계정 화면에서 버튼을 누르면 "provider is not enabled" 류의 오류가 표시된다 (앱은 정상 동작).
@@ -29,8 +29,15 @@ Supabase 콜백 주소 (Google·Apple 콘솔에 넣을 값): `https://njdrmaosdb
 2. **사용자 인증 정보 → OAuth 클라이언트 ID → 웹 애플리케이션**
    - 승인된 리디렉션 URI: 위 Supabase 콜백 주소
 3. 받은 **클라이언트 ID / 보안 비밀** 을 Supabase → Providers → Google 에 입력하고 켜기.
-
-(브라우저 OAuth 방식이라 Android/iOS 전용 클라이언트 ID 는 필요 없다.)
+4. **Android 네이티브 로그인용** (Google 화면에 Supabase 주소 대신 'Econary' 가 보인다):
+   - **사용자 인증 정보 → OAuth 클라이언트 ID → Android**: 패키지 `com.econary.app`, SHA-1 = EAS 서명 키
+     `49:86:84:40:1B:EA:04:A8:54:3A:E6:8B:EF:45:BC:29:B7:6F:AC:17` (dev/preview/production 공통).
+     Play 스토어 출시 후에는 Play Console → 앱 무결성의 **앱 서명 키 SHA-1** 로 Android 클라이언트를 하나 더 만든다 (없으면 출시 앱에서 로그인이 '취소'로 끝남).
+   - **iOS 클라이언트**: 번들 ID `com.econary.app`. Apple 계정 없이 만들 수 있고, 라이브러리 설정이 요구하는
+     `iosUrlScheme` (`app.json` 플러그인, `com.googleusercontent.apps.<iOS 클라이언트 ID 앞부분>`) 이 여기서 나온다.
+   - 웹 클라이언트 ID 를 `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` 로 `apps/mobile/.env` 와 EAS 환경 변수(세 환경 모두)에 넣는다.
+     ID 토큰의 aud 가 이 값이라 Supabase 쪽은 추가 설정이 없다. 비어 있으면 Android 도 브라우저 OAuth 로 동작.
+   - 이 값들은 공개 식별자라 저장소에 있어도 된다. 보안 비밀(client secret)은 Supabase 에만 둔다.
 
 ## 3. Apple (Apple Developer 계정 필요)
 

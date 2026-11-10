@@ -3,7 +3,9 @@
  * 연결하면 지금까지의 학습 기록이 그대로 그 계정에 남고, 다른 기기에서 같은 계정으로 로그인해 이어서 할 수 있다.
  *
  * - iOS + Apple: 네이티브 'Apple로 로그인' → ID 토큰으로 linkIdentity (App Store 가이드라인 4.8)
- * - 그 외(Google 전부, Android·웹의 Apple): Supabase OAuth 를 브라우저로 열고, 돌아온 code 를 세션으로 교환 (PKCE)
+ * - Android + Google: 네이티브 Google 계정 선택 창(Credential Manager) → ID 토큰으로 linkIdentity.
+ *   Google 화면에 Supabase 주소 대신 앱 이름이 보이고 브라우저를 거치지 않는다. EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID 필요.
+ * - 그 외(웹, iOS 의 Google, Android·웹의 Apple): Supabase OAuth 를 브라우저로 열고, 돌아온 code 를 세션으로 교환 (PKCE)
  *
  * 이미 다른 학습 기록에 연결된 계정이면 연결할 수 없다 → 'already_linked' 를 돌려주고,
  * 사용자가 원하면 signInExisting() 으로 그 계정으로 전환한다 (이 기기의 익명 기록은 이어지지 않음).
@@ -89,6 +91,40 @@ async function nativeApple(mode: 'link' | 'signin'): Promise<LinkOutcome> {
   return { status: mode === 'link' ? 'linked' : 'signed_in' };
 }
 
+/** Google Cloud 의 '웹 애플리케이션' OAuth 클라이언트 ID (공개 값). ID 토큰의 aud 가 되고, Supabase Google 설정의 Client ID 와 같아야 한다 */
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+const NATIVE_GOOGLE = Platform.OS === 'android' && GOOGLE_WEB_CLIENT_ID !== '';
+
+async function nativeGoogle(mode: 'link' | 'signin'): Promise<LinkOutcome> {
+  // 네이티브 모듈이라 웹 번들에서는 불러오지 않는다
+  const { GoogleOneTapSignIn, isErrorWithCode, isSuccessResponse, statusCodes } = await import('react-native-nitro-google-signin');
+  const rawNonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+  // Google 에는 해시를 (ID 토큰의 nonce 로 들어감), Supabase 에는 원문을 보낸다 — Apple 과 같은 방식
+  GoogleOneTapSignIn.configure({ webClientId: GOOGLE_WEB_CLIENT_ID, nonce: hashedNonce });
+
+  let token: string;
+  try {
+    // 기기의 모든 Google 계정 + '계정 추가'가 보이는 선택 창 (자동 선택하지 않음)
+    const response = await GoogleOneTapSignIn.presentExplicitSignIn();
+    if (!isSuccessResponse(response)) return { status: 'cancelled' };
+    token = response.data.idToken;
+  } catch (e) {
+    if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return { status: 'cancelled' };
+    if (isErrorWithCode(e) && e.code === statusCodes.DEVELOPER_ERROR) {
+      // 패키지명·SHA-1·클라이언트 ID 불일치 (docs/auth-setup.md 의 Android 클라이언트)
+      console.warn('[계정 연결] Google DEVELOPER_ERROR — Android OAuth 클라이언트의 SHA-1/패키지명 확인', e);
+      return { status: 'error', message: '이 로그인 방식은 아직 준비 중이에요.' };
+    }
+    return { status: 'error', message: e instanceof Error ? e.message : String(e) };
+  }
+
+  const creds = { provider: 'google' as const, token, nonce: rawNonce };
+  const { error } = mode === 'link' ? await supabase.auth.linkIdentity(creds) : await supabase.auth.signInWithIdToken(creds);
+  if (error) return failure(error.message);
+  return { status: mode === 'link' ? 'linked' : 'signed_in' };
+}
+
 async function browserOAuth(provider: Provider, mode: 'link' | 'signin'): Promise<LinkOutcome> {
   const redirectTo = redirectUrl();
   const web = Platform.OS === 'web';
@@ -116,6 +152,7 @@ export async function linkAccount(provider: Provider): Promise<LinkOutcome> {
   if (provider === 'apple' && Platform.OS === 'ios' && (await AppleAuthentication.isAvailableAsync())) {
     return nativeApple('link');
   }
+  if (provider === 'google' && NATIVE_GOOGLE) return nativeGoogle('link');
   return browserOAuth(provider, 'link');
 }
 
@@ -124,10 +161,17 @@ export async function signInExisting(provider: Provider): Promise<LinkOutcome> {
   if (provider === 'apple' && Platform.OS === 'ios' && (await AppleAuthentication.isAvailableAsync())) {
     return nativeApple('signin');
   }
+  if (provider === 'google' && NATIVE_GOOGLE) return nativeGoogle('signin');
   return browserOAuth(provider, 'signin');
 }
 
 /** 연결된 계정에서 로그아웃 → 새 익명 학습자로 시작 (AuthProvider 가 자동 처리). 계정의 기록은 서버에 남는다. */
 export async function signOut(): Promise<void> {
+  if (NATIVE_GOOGLE) {
+    // 기기의 Google 자격 증명 상태도 비워 다음 로그인 때 자동으로 같은 계정이 쓰이지 않게 한다 (실패해도 로그아웃은 계속)
+    await import('react-native-nitro-google-signin')
+      .then(({ GoogleOneTapSignIn }) => GoogleOneTapSignIn.signOut())
+      .catch(() => {});
+  }
   await supabase.auth.signOut();
 }
