@@ -32,10 +32,13 @@ function Gate() {
   }, []);
 
   if (error || (!loading && !session)) return <Launch error={error ?? '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'} onRetry={retry} />;
-  if (onboarded.error) return <Launch error="네트워크 연결을 확인한 뒤 다시 시도해 주세요." onRetry={onboarded.retry} />;
-  if (loading || !session || onboarded.value === null) return <Launch />;
-  // 첫 실행 온보딩(시험 회차·공부 시간)은 익명 학습자에게만. 기존 계정으로 로그인하면 바로 앱으로 — 계획이 없으면 오늘 탭에서 세운다
-  const inApp = onboarded.value || !session.user.is_anonymous;
+  // 첫 실행 온보딩(시험 회차·공부 시간)은 익명 학습자에게만. 기존 계정으로 로그인하면 바로 앱으로 — 계획이 없으면 오늘 탭에서 세운다.
+  // 계정 학습자는 온보딩 여부를 기다리지 않는다: 웹에서 Google 로그인으로 돌아오면 세션이 익명 → 계정으로 바뀌는데,
+  // 그때 실행 화면으로 바꾸면 내비게이터가 통째로 내려갔다 올라오면서 빈 화면이 된다
+  const anonymous = session?.user.is_anonymous ?? true;
+  if (anonymous && onboarded.error) return <Launch error="네트워크 연결을 확인한 뒤 다시 시도해 주세요." onRetry={onboarded.retry} />;
+  if (loading || !session || (anonymous && onboarded.value === null)) return <Launch />;
+  const inApp = !anonymous || !!onboarded.value;
 
   // 디자인: 화면 push 는 네이티브 스택 전환 그대로. 헤더는 제목 없이 '‹ 이전 화면' 만, 배경은 화면과 같은 색
   const sheet = {
