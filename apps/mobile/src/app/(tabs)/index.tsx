@@ -1,8 +1,8 @@
 import { isAssignmentComplete, studyDate } from '@tesat/core';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { getMyPlan, getTodayAssignment, getTodayReviews, getWeek, getWords, type MyPlan } from '../../lib/api';
+import { getMyPlan, getTodayAssignment, getTodayReviews, getWeek, getWords, onPlanSaved, type MyPlan } from '../../lib/api';
 import { useLoad } from '../../lib/useLoad';
 import { categoryColor, onCategory, radius, useTheme } from '../../theme';
 import { WeekStrip, WordDeckCard } from '../../ui/deck';
@@ -54,6 +54,8 @@ export default function TodayScreen() {
       focusedOnce.current = true;
     }, []), // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // 계획을 바꾸면 오늘 배정(서버가 새 계획에 맞춰 늘리거나 줄임)과 표시를 바로 다시 읽는다
+  useEffect(() => onPlanSaved(reload), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) {
     return (

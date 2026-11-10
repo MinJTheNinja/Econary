@@ -12,7 +12,7 @@ import { Button, InlineError, Pressy, SectionLabel, Spinner, Txt } from '../ui/k
 
 /**
  * 학습 계획 시트 (오늘 탭 'D-n · 하루 n개 (변경)'). 기존 '학습 수준' 시트를 대체.
- * 고르는 동안 계획을 미리 보여 주고 '저장'으로 반영한다. 오늘 이미 배정된 단어는 그대로, 내일부터 적용.
+ * 고르는 동안 계획을 미리 보여 주고 '저장'으로 반영한다. 오늘 배정도 서버가 새 계획에 맞춘다(시작한 단어는 유지).
  */
 export default function StudyPlanSheet() {
   const { c } = useTheme();
@@ -66,7 +66,7 @@ export default function StudyPlanSheet() {
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16, gap: 8 }}>
         <Txt variant="subhead" color={c.text2} style={{ marginHorizontal: 4 }}>
-          시험일과 하루 공부 시간으로 매일 새 단어 수를 정해요. 오늘 이미 배정된 단어는 그대로이고, 내일부터 적용돼요.
+          시험일과 하루 공부 시간으로 매일 새 단어 수를 정해요. 저장하면 오늘 단어 수도 바로 바뀌어요 — 이미 시작한 단어는 그대로 남아요.
         </Txt>
         {base.error ? (
           <View style={{ gap: 12, alignItems: 'center', paddingVertical: 24 }}>

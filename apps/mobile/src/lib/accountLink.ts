@@ -27,7 +27,11 @@ export type LinkOutcome =
   | { status: 'already_linked' }
   | { status: 'error'; message: string };
 
-export const redirectUrl = () => Linking.createURL('auth-callback');
+// 웹: Linking.createURL 은 baseUrl(GitHub Pages 의 /Econary/app)을 빼먹어서 직접 만든다
+export const redirectUrl = () =>
+  Platform.OS === 'web'
+    ? `${window.location.origin}${process.env.EXPO_BASE_URL ?? ''}/auth-callback`
+    : Linking.createURL('auth-callback');
 
 // email_exists: 같은 이메일을 다른 방식(다른 공급자·이메일 가입)으로 쓰는 계정이 이미 있다 — 학습자에게는 '이미 연결된 계정'과 같은 상황
 const ALREADY_LINKED = /identity_already_exists|email_exists|already linked|already been linked|already been registered|already exists/i;

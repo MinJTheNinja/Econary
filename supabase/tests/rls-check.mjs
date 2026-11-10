@@ -110,6 +110,17 @@ const plan = (await q('select * from get_my_plan()'))[0];
 eq('my plan', { quota: plan.quota, phase: plan.phase, days_left: plan.days_left, remaining: plan.remaining, exam_round: plan.exam_round },
   { quota: 3, phase: 'learn', days_left: 37, remaining: 5, exam_round: 999 });
 console.log('today assignment follows plan (3):', (await q('select * from get_or_create_today_assignment()')).length === 3 ? '✓' : 'FAIL');
+// 계획을 바꾸면 오늘 배정도 바로: 늘리면 추가, 줄이면 손대지 않은 단어만 뒤에서 뺀다
+await db.exec('reset role');
+const firstToday = (await q(`select word_id from daily_assignments where user_id = $1 and assign_date = kst_today() order by position limit 1`, [U2]))[0].word_id;
+await db.exec(`update daily_assignments set content_viewed_at = now() where user_id = '${U2}' and word_id = ${firstToday}`);
+await db.exec(`set test.uid = '${U2}'; set role authenticated;`);
+await db.exec(`update profiles set exam_round_id = null`); // 미정 → 하루 10개 (단어는 5개뿐)
+const grown = await q('select word_id, position from get_or_create_today_assignment()');
+console.log('plan up → today topped up to 5, no duplicates:', grown.length === 5 && new Set(grown.map((r) => r.word_id)).size === 5 ? '✓' : `FAIL ${grown.length}`);
+await db.exec(`update profiles set exam_round_id = ${roundId}`); // 다시 하루 3개
+const shrunk = await q('select word_id from get_or_create_today_assignment()');
+console.log('plan down → back to 3, started word kept:', shrunk.length === 3 && shrunk.some((r) => r.word_id === firstToday) ? '✓' : `FAIL ${shrunk.length}`);
 await db.exec('reset role');
 
 // ───────── 계정 삭제 ─────────

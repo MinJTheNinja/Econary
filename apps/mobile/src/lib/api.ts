@@ -133,7 +133,7 @@ export async function getMyProfile(): Promise<StudyProfile> {
   return check(await supabase.from('profiles').select('exam_round_id, daily_minutes, onboarded_at').single()) as StudyProfile;
 }
 
-/** 시험 회차·공부 시간 저장. onboarded 면 온보딩 완료 시각도 남긴다. 오늘 이미 배정된 단어는 그대로, 내일부터 적용 */
+/** 시험 회차·공부 시간 저장. onboarded 면 온보딩 완료 시각도 남긴다. 오늘 배정은 다음 조회 때 새 계획에 맞춰진다 (get_or_create_today_assignment) */
 export async function saveStudyProfile(
   userId: string,
   p: { examRoundId: number | null; dailyMinutes: number; onboarded?: boolean },
@@ -145,6 +145,14 @@ export async function saveStudyProfile(
       ...(p.onboarded ? { onboarded_at: new Date().toISOString() } : {}),
     }).eq('user_id', userId),
   );
+  planListeners.forEach((l) => l());
+}
+
+// 계획을 저장하면 오늘 탭이 다시 불러온다 (시트를 닫을 때 포커스 이벤트가 오지 않는 플랫폼도 있어서)
+const planListeners = new Set<() => void>();
+export function onPlanSaved(listener: () => void): () => void {
+  planListeners.add(listener);
+  return () => { planListeners.delete(listener); };
 }
 
 export interface MyPlan extends Plan {
