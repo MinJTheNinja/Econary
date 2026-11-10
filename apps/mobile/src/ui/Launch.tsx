@@ -9,27 +9,26 @@ import { Button, Txt } from './kit';
 
 /** 흩어진 자모: 화면 가운데 기준 시작 위치(390×844 기준)·회전 → 모일 글자 안의 위치 */
 type Jamo = { ch: string; tone: 'accent' | 'text'; from: [number, number, number]; to: [number, number] };
-const SIZE = 76; // 완성 글자 크기
-const ROW = 42; // 줄 중심 ↔ 가운데
-const COL = 38; // 글자 중심 ↔ 가운데
+const SIZE = 66; // 완성 글자 크기
+const STEP = 62; // 글자 간격 (한 줄 네 글자: 이 코 너 리)
+const X = [-1.5, -0.5, 0.5, 1.5].map((k) => k * STEP);
 const JAMO: Jamo[] = [
-  // 시
-  { ch: 'ㅅ', tone: 'accent', from: [-128, -237, -18], to: [-COL - 12, -ROW] },
-  { ch: 'ㅣ', tone: 'accent', from: [124, -188, 20], to: [-COL + 18, -ROW] },
-  // 사
-  { ch: 'ㅅ', tone: 'accent', from: [72, 255, 35], to: [COL - 12, -ROW] },
-  { ch: 'ㅏ', tone: 'accent', from: [-103, 200, -12], to: [COL + 18, -ROW] },
-  // 어
-  { ch: 'ㅇ', tone: 'text', from: [116, -59, 0], to: [-COL - 12, ROW] },
-  { ch: 'ㅓ', tone: 'text', from: [-139, 19, -40], to: [-COL + 16, ROW] },
-  // 휘
-  { ch: 'ㅎ', tone: 'text', from: [-14, -270, 14], to: [COL - 12, ROW - 14] },
-  { ch: 'ㅜ', tone: 'text', from: [146, 114, -8], to: [COL - 8, ROW + 12] },
-  { ch: 'ㅣ', tone: 'text', from: [-35, 319, 24], to: [COL + 20, ROW] },
+  // 이 (Eco → accent)
+  { ch: 'ㅇ', tone: 'accent', from: [-128, -237, -18], to: [X[0] - 10, 0] },
+  { ch: 'ㅣ', tone: 'accent', from: [124, -188, 20], to: [X[0] + 16, 0] },
+  // 코
+  { ch: 'ㅋ', tone: 'accent', from: [-103, 200, -12], to: [X[1], -12] },
+  { ch: 'ㅗ', tone: 'accent', from: [146, 114, -8], to: [X[1], 14] },
+  // 너 (nary → text)
+  { ch: 'ㄴ', tone: 'text', from: [-139, 19, -40], to: [X[2] - 10, 0] },
+  { ch: 'ㅓ', tone: 'text', from: [72, 255, 35], to: [X[2] + 14, 0] },
+  // 리
+  { ch: 'ㄹ', tone: 'text', from: [-14, -270, 14], to: [X[3] - 10, 0] },
+  { ch: 'ㅣ', tone: 'text', from: [-35, 319, 24], to: [X[3] + 16, 0] },
 ];
 
 /**
- * 앱 실행 화면 (시안 '안1'): 흩어진 자모가 0.8초 동안 모여 '시사 / 어휘'가 된다.
+ * 앱 실행 화면 (시안 '안1'): 흩어진 자모가 0.8초 동안 모여 '이코너리'(Econary)가 된다.
  * 익명 로그인·온보딩 확인이 끝날 때까지 보이고, 실패하면 다시 시도. Reduce Motion 이면 완성된 글자만.
  */
 export function Launch({ error, onRetry, ready }: { error?: string | null; onRetry?: () => void; /** 오늘의 단어를 다 불러옴 → '준비했어요' */ ready?: boolean }) {
@@ -54,14 +53,17 @@ export function Launch({ error, onRetry, ready }: { error?: string | null; onRet
         style={{ flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}
         accessible
         accessibilityRole="image"
-        accessibilityLabel="시사 어휘"
+        accessibilityLabel="이코너리"
       >
         {JAMO.map((j, i) => (
           <JamoPiece key={i} j={j} i={i} p={p} scatter={scatter} color={j.tone === 'accent' ? c.accent : c.text} />
         ))}
-        <Animated.View style={[{ alignItems: 'center' }, wordStyle]}>
-          <Txt variant="display" color={c.accent} style={{ fontSize: SIZE, lineHeight: SIZE + 8, letterSpacing: -2 }}>시사</Txt>
-          <Txt variant="display" style={{ fontSize: SIZE, lineHeight: SIZE + 8, letterSpacing: -2 }}>어휘</Txt>
+        <Animated.View style={[{ flexDirection: 'row' }, wordStyle]}>
+          {['이', '코', '너', '리'].map((s, i) => (
+            <Txt key={s} variant="display" color={i < 2 ? c.accent : c.text} style={{ width: STEP, textAlign: 'center', fontSize: SIZE, lineHeight: SIZE + 10 }}>
+              {s}
+            </Txt>
+          ))}
         </Animated.View>
         {error ? (
           <View accessibilityRole="alert" style={{ position: 'absolute', bottom: 24, left: 0, right: 0, alignItems: 'center', gap: 8 }}>
