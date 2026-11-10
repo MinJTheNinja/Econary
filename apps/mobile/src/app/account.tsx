@@ -1,10 +1,12 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { deleteAccount, linkAccount, signInExisting, signOut, type LinkOutcome, type Provider } from '../lib/accountLink';
 import { useAuth } from '../lib/auth';
+import { PRIVACY_URL } from '../lib/links';
 import { radius, useTheme } from '../theme';
 import { Banner, Button, Card, IconBubble, LargeTitle, Pressy, PushScreen, Row, Spinner, Txt } from '../ui/kit';
 
@@ -191,6 +193,16 @@ export default function AccountScreen() {
           {deleteSection}
         </>
       )}
+
+      {/* Play 정책: 개인정보처리방침은 앱 안에서도 열 수 있어야 한다 */}
+      <Pressy
+        onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)}
+        accessibilityRole="link"
+        accessibilityLabel="개인정보처리방침 열기"
+        style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: signinMode && anonymous ? 12 : 0 }}
+      >
+        <Txt variant="footnote" weight="500" color={c.text2} style={{ textDecorationLine: 'underline' }}>개인정보처리방침</Txt>
+      </Pressy>
     </PushScreen>
   );
 }

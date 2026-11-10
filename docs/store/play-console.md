@@ -4,17 +4,12 @@ Play Console 에 그대로 붙여 넣을 값과, 출시 전에 해야 할 일. �
 
 ## 0. 공개 페이지 (GitHub Pages)
 
-`site/` 폴더가 그대로 웹사이트다 (`index.html`, `privacy.html`, `delete-account.html`).
+`site/` 폴더가 웹사이트다 (`index.html`, `privacy.html`, `delete-account.html`). 저장소: https://github.com/MinJTheNinja/Econary (공개)
 
-1. GitHub 에 저장소를 만든다 (예: `econary`). 공개 저장소여야 무료 Pages 를 쓸 수 있다.
-   비공개로 두고 싶으면 `site/` 만 담은 별도 공개 저장소(예: `econary-site`)를 만든다.
-2. 저장소 **Settings → Pages → Build and deployment**: Source = *Deploy from a branch*, Branch = `main`, 폴더 = `/site`
-   (`/site` 를 고를 수 없으면 `/ (root)` 저장소에 `site/` 안의 파일만 올린다).
-3. 몇 분 뒤 `https://<GitHub 아이디>.github.io/<저장소>/` 가 열린다. 아래에서 쓰는 주소:
-   - 개인정보처리방침: `https://<아이디>.github.io/<저장소>/privacy.html`
-   - 계정 삭제: `https://<아이디>.github.io/<저장소>/delete-account.html`
-
-> Play 정책상 개인정보처리방침은 **앱 안에서도** 열 수 있어야 한다. 주소가 정해지면 앱 계정 화면에 링크를 넣는다 (남은 일 참고).
+- `.github/workflows/pages.yml` 이 `main` 에 push 될 때 `site/` 를 배포한다.
+- 처음 한 번: 저장소 **Settings → Pages → Build and deployment → Source** 를 **GitHub Actions** 로 바꾼다.
+- 주소: 개인정보처리방침 `https://minjtheninja.github.io/Econary/privacy.html`, 계정 삭제 `https://minjtheninja.github.io/Econary/delete-account.html`
+- 앱 안 링크: `apps/mobile/src/lib/links.ts` (계정 화면 맨 아래 개인정보처리방침).
 
 ## 1. 기본 정보
 
@@ -26,7 +21,7 @@ Play Console 에 그대로 붙여 넣을 값과, 출시 전에 해야 할 일. �
 | 무료/유료 | 무료 |
 | 카테고리 | 교육 |
 | 이메일 | `econary.admin@gmail.com` |
-| 개인정보처리방침 URL | `https://<아이디>.github.io/<저장소>/privacy.html` |
+| 개인정보처리방침 URL | `https://minjtheninja.github.io/Econary/privacy.html` |
 
 ### 간단한 설명 (80자)
 
@@ -83,7 +78,7 @@ Econary 는 economics dictionary 의 줄임말입니다. 한국경제신문의 T
 | 금융 기능 | 금융 기능 없음 |
 | 건강 | 해당 없음 |
 | 정부 앱 | 아니요 |
-| 계정 삭제 | 앱 안에서 삭제 가능: 예 / 웹 링크: `https://<아이디>.github.io/<저장소>/delete-account.html` |
+| 계정 삭제 | 앱 안에서 삭제 가능: 예 / 웹 링크: `https://minjtheninja.github.io/Econary/delete-account.html` |
 
 ### 데이터 보안 (Data safety)
 
