@@ -1,8 +1,9 @@
 import { isAssignmentComplete, studyDate } from '@tesat/core';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { onPlanSaved, type MyPlan } from '../../lib/api';
+import { getPref } from '../../lib/prefs';
 import { loadToday, takeToday } from '../../lib/today';
 import { useLoad } from '../../lib/useLoad';
 import { categoryColor, onCategory, radius, useTheme } from '../../theme';
@@ -133,6 +134,8 @@ export default function TodayScreen() {
 
       {data.week ? <WeekStrip days={data.week.days} today={today} streak={data.week.streak} /> : null}
 
+      {total > 0 ? <PracticeTiles total={total} /> : null}
+
       {data.reviewsPending > 0 && (
         <Pressy
           onPress={() => router.navigate('/review')}
@@ -148,6 +151,72 @@ export default function TodayScreen() {
         </Pressy>
       )}
     </TabScreen>
+  );
+}
+
+/** 짝 맞추기는 최대 6쌍, 3개 미만이면 못 한다 (MatchGame 과 같은 규칙) */
+const matchPairs = (total: number) => Math.min(6, total);
+
+/** 오늘 단어로 연습: 카드 넘기기 · 짝 맞추기 (시안 '오늘' 보드) */
+function PracticeTiles({ total }: { total: number }) {
+  const { c } = useTheme();
+  const pairs = matchPairs(total);
+  const [best, setBest] = useState<number | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (pairs < 3) return;
+      void getPref<number | null>(`match-best:${pairs}`, null).then(setBest); // 짝 맞추기 후 돌아오면 기록 갱신
+    }, [pairs]),
+  );
+  const canMatch = pairs >= 3;
+  const matchSub = !canMatch ? '단어 3개부터' : best !== null ? `내 기록 ${(best / 1000).toFixed(1)}초` : '아직 기록 없음';
+
+  return (
+    <View style={{ flexDirection: 'row', gap: 12 }}>
+      <View style={{ flex: 1 }}>
+        <PracticeTile
+          title="카드 넘기기" sub={`오늘 단어 ${total}장`}
+          onPress={() => router.push({ pathname: '/cards', params: { mode: 'flip' } })}
+          icon={
+            <View style={{ width: 28, height: 24 }}>
+              <View style={{ position: 'absolute', left: 8, top: 0, width: 20, height: 16, borderRadius: 4, backgroundColor: c.heatPartial, transform: [{ rotate: '8deg' }] }} />
+              <View style={{ position: 'absolute', left: 0, top: 6, width: 20, height: 16, borderRadius: 4, backgroundColor: c.accentFill, transform: [{ rotate: '-6deg' }] }} />
+            </View>
+          }
+        />
+      </View>
+      <View style={{ flex: 1 }}>
+        <PracticeTile
+          title="짝 맞추기" sub={matchSub} disabled={!canMatch}
+          onPress={() => router.push({ pathname: '/cards', params: { mode: 'match' } })}
+          icon={
+            <View style={{ width: 24, height: 24, flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+              {[c.accentFill, c.heatPartial, c.heatPartial, c.accentFill].map((bg, i) => (
+                <View key={i} style={{ width: 10, height: 10, borderRadius: 2.5, backgroundColor: bg }} />
+              ))}
+            </View>
+          }
+        />
+      </View>
+    </View>
+  );
+}
+
+function PracticeTile({ title, sub, icon, onPress, disabled }: { title: string; sub: string; icon: ReactNode; onPress: () => void; disabled?: boolean }) {
+  const { c } = useTheme();
+  return (
+    <Pressy
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityLabel={`${title}, ${sub}`}
+      style={{ backgroundColor: c.surface, borderRadius: radius.xl, padding: 16, gap: 10, minHeight: 104, opacity: disabled ? 0.5 : 1 }}
+    >
+      {icon}
+      <View style={{ gap: 2 }}>
+        <Txt variant="subhead" weight="600">{title}</Txt>
+        <Txt variant="caption" color={c.text2}>{sub}</Txt>
+      </View>
+    </Pressy>
   );
 }
 
