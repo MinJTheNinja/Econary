@@ -111,3 +111,25 @@ eq('my plan', { quota: plan.quota, phase: plan.phase, days_left: plan.days_left,
   { quota: 3, phase: 'learn', days_left: 37, remaining: 5, exam_round: 999 });
 console.log('today assignment follows plan (3):', (await q('select * from get_or_create_today_assignment()')).length === 3 ? '✓' : 'FAIL');
 await db.exec('reset role');
+
+// ───────── 계정 삭제 ─────────
+const firstAssigned = (await q(`select word_id from daily_assignments where user_id = $1 limit 1`, [U2]))[0].word_id;
+const contentId = (await q(`select id from word_contents where word_id = $1 limit 1`, [firstAssigned]))[0]?.id;
+if (contentId) await db.exec(`insert into content_reports (user_id, word_id, content_id, reason) values ('${U2}', ${firstAssigned}, ${contentId}, 'typo')`);
+await db.exec(`set test.uid = '${U2}'; set role authenticated;`);
+await db.exec(`select delete_my_account()`);
+await db.exec('reset role');
+const left = (await q(`select
+  (select count(*) from auth.users where id = $1)::int users,
+  (select count(*) from profiles where user_id = $1)::int profiles,
+  (select count(*) from daily_assignments where user_id = $1)::int assignments`, [U2]))[0];
+eq('delete account removes learner data', left, { users: 0, profiles: 0, assignments: 0 });
+if (contentId) console.log('reports kept but detached:', (await q(`select count(*)::int n from content_reports where content_id = $1 and user_id is null`, [contentId]))[0].n === 1 ? '✓' : 'FAIL');
+const STAFF = '66666666-6666-6666-6666-666666666666';
+await db.exec(`insert into auth.users values ('${STAFF}'); update profiles set role = 'content_admin' where user_id = '${STAFF}'`);
+await db.exec(`set test.uid = '${STAFF}'; set role authenticated;`);
+try { await db.exec(`select delete_my_account()`); console.log('FAIL staff deleted'); } catch { console.log('staff account cannot self-delete ✓'); }
+await db.exec('reset role');
+await db.exec(`set role anon; set test.uid = '';`);
+try { await db.exec(`select delete_my_account()`); console.log('FAIL anon called delete'); } catch { console.log('anon cannot call delete ✓'); }
+await db.exec('reset role');

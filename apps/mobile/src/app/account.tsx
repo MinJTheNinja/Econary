@@ -1,9 +1,9 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Alert, Platform, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { linkAccount, signInExisting, signOut, type LinkOutcome, type Provider } from '../lib/accountLink';
+import { deleteAccount, linkAccount, signInExisting, signOut, type LinkOutcome, type Provider } from '../lib/accountLink';
 import { useAuth } from '../lib/auth';
 import { radius, useTheme } from '../theme';
 import { Banner, Button, Card, IconBubble, LargeTitle, Pressy, PushScreen, Row, Spinner, Txt } from '../ui/kit';
@@ -23,8 +23,9 @@ export default function AccountScreen() {
   const anonymous = user?.is_anonymous ?? true;
   const identity = (user?.identities ?? []).find((i) => i.provider !== 'anonymous');
   const email = (identity?.identity_data?.email as string | undefined) ?? user?.email ?? '';
-  const [busy, setBusy] = useState<Provider | 'signout' | null>(null);
+  const [busy, setBusy] = useState<Provider | 'signout' | 'delete' | null>(null);
   const [outcome, setOutcome] = useState<(LinkOutcome & { provider: Provider }) | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // iOS 는 Apple 을 먼저 (App Store 가이드라인 4.8)
   const providers: Provider[] = Platform.OS === 'ios' ? ['apple', 'google'] : ['google', 'apple'];
@@ -48,6 +49,48 @@ export default function AccountScreen() {
     setBusy(null);
     router.dismissTo('/');
   };
+
+  const doDelete = async () => {
+    setBusy('delete');
+    setDeleteError(null);
+    const result = await deleteAccount();
+    setBusy(null);
+    if (result.ok) router.dismissTo('/');
+    else setDeleteError(result.message);
+  };
+
+  // 되돌릴 수 없으므로 한 번 더 묻는다 (웹 미리보기는 Alert 버튼을 지원하지 않아 confirm)
+  const confirmDelete = () => {
+    const title = '계정을 삭제할까요?';
+    const body = anonymous
+      ? '이 기기의 학습 기록(오늘의 단어, 퀴즈, 복습 일정, 학습 계획)이 모두 삭제되고 되돌릴 수 없어요.'
+      : '계정에 저장된 학습 기록과 연결된 계정 정보가 모두 삭제되고 되돌릴 수 없어요. 다른 기기에서도 이어서 할 수 없어요.';
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm?.(`${title}\n\n${body}`)) void doDelete();
+      return;
+    }
+    Alert.alert(title, body, [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: () => void doDelete() },
+    ]);
+  };
+
+  const deleteSection = (
+    <View style={{ gap: 6, paddingTop: 18 }}>
+      {deleteError ? <Banner tone="danger" title={deleteError} /> : null}
+      <Pressy
+        onPress={confirmDelete}
+        disabled={busy !== null}
+        accessibilityLabel="계정 삭제"
+        style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
+      >
+        {busy === 'delete' ? <Spinner color={c.text2} /> : <Txt variant="subhead" weight="500" color={c.danger}>계정 삭제</Txt>}
+      </Pressy>
+      <Txt variant="footnote" weight="400" color={c.text2} style={{ paddingHorizontal: 4, lineHeight: 21, textAlign: 'center' }}>
+        학습 기록과 계정 정보를 서버에서 모두 지워요.
+      </Txt>
+    </View>
+  );
 
   return (
     <PushScreen gap={14}>
@@ -114,6 +157,7 @@ export default function AccountScreen() {
               ),
             )}
           </View>
+          {deleteSection}
         </>
       ) : (
         <>
@@ -144,6 +188,7 @@ export default function AccountScreen() {
           <Txt variant="footnote" weight="400" color={c.text2} style={{ paddingHorizontal: 4, lineHeight: 21 }}>
             로그아웃해도 계정의 학습 기록은 남아 있고, 다시 로그인하면 이어서 할 수 있어요. 로그아웃하면 이 기기는 새 익명 학습자로 시작해요.
           </Txt>
+          {deleteSection}
         </>
       )}
     </PushScreen>

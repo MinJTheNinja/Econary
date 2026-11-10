@@ -165,13 +165,34 @@ export async function signInExisting(provider: Provider): Promise<LinkOutcome> {
   return browserOAuth(provider, 'signin');
 }
 
+/** 기기의 Google 자격 증명 상태를 비워 다음 로그인 때 같은 계정이 자동으로 쓰이지 않게 한다 (실패해도 계속) */
+async function clearGoogleCredential(): Promise<void> {
+  if (!NATIVE_GOOGLE) return;
+  await import('react-native-nitro-google-signin')
+    .then(({ GoogleOneTapSignIn }) => GoogleOneTapSignIn.signOut())
+    .catch(() => {});
+}
+
 /** 연결된 계정에서 로그아웃 → 새 익명 학습자로 시작 (AuthProvider 가 자동 처리). 계정의 기록은 서버에 남는다. */
 export async function signOut(): Promise<void> {
-  if (NATIVE_GOOGLE) {
-    // 기기의 Google 자격 증명 상태도 비워 다음 로그인 때 자동으로 같은 계정이 쓰이지 않게 한다 (실패해도 로그아웃은 계속)
-    await import('react-native-nitro-google-signin')
-      .then(({ GoogleOneTapSignIn }) => GoogleOneTapSignIn.signOut())
-      .catch(() => {});
-  }
+  await clearGoogleCredential();
   await supabase.auth.signOut();
+}
+
+/**
+ * 계정 삭제 (delete_my_account RPC): 학습 기록·프로필·연결된 Apple/Google 정보를 서버에서 지운다. 되돌릴 수 없다.
+ * 이후 이 기기는 새 익명 학습자로 시작한다 (AuthProvider 가 자동 처리).
+ */
+export async function deleteAccount(): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) {
+    return {
+      ok: false,
+      message: /staff accounts/.test(error.message) ? '관리자 계정은 앱에서 삭제할 수 없어요.' : '삭제하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.',
+    };
+  }
+  await clearGoogleCredential();
+  // 서버에서 사용자가 이미 지워졌으므로 이 기기의 세션만 비운다
+  await supabase.auth.signOut({ scope: 'local' });
+  return { ok: true };
 }
