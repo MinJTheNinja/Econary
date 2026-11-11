@@ -33,6 +33,7 @@ Supabase 콜백 주소 (Google·Apple 콘솔에 넣을 값): `https://njdrmaosdb
    - **사용자 인증 정보 → OAuth 클라이언트 ID → Android**: 패키지 `com.econary.app`, SHA-1 = EAS 서명 키
      `49:86:84:40:1B:EA:04:A8:54:3A:E6:8B:EF:45:BC:29:B7:6F:AC:17` (dev/preview/production 공통).
      Play 스토어 출시 후에는 Play Console → 앱 무결성의 **앱 서명 키 SHA-1** 로 Android 클라이언트를 하나 더 만든다 (없으면 출시 앱에서 로그인이 '취소'로 끝남).
+     Play 앱 서명 키 SHA-1: `17:0C:5D:55:0F:56:6C:A6:4D:C4:61:1A:CA:75:DE:1C:AE:3E:FC:B9` (Play 에서 설치한 앱용, EAS 클라이언트와 둘 다 유지).
    - **iOS 클라이언트**: 번들 ID `com.econary.app`. Apple 계정 없이 만들 수 있고, 라이브러리 설정이 요구하는
      `iosUrlScheme` (`app.json` 플러그인, `com.googleusercontent.apps.<iOS 클라이언트 ID 앞부분>`) 이 여기서 나온다.
    - 웹 클라이언트 ID 를 `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` 로 `apps/mobile/.env` 와 EAS 환경 변수(세 환경 모두)에 넣는다.
