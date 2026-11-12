@@ -15,7 +15,9 @@ if (-not (Test-Path $PythonwPath)) {
 
 $Action = New-ScheduledTaskAction -Execute $PythonwPath -Argument "`"$ScriptPath`"" -WorkingDirectory $PSScriptRoot
 $Trigger = New-ScheduledTaskTrigger -Daily -At 09:00
-$Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+# WakeToRun: 09:00 에 PC 가 절전 중이면 깨워서 실행한다 (StartWhenAvailable 만으로는 깨어날 때까지 밀린다).
+# ExecutionTimeLimit 2시간: 분당 토큰 한도(8000)를 지키며 기다리면 두 출처 합쳐 1시간을 넘길 수 있다.
+$Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -WakeToRun -ExecutionTimeLimit (New-TimeSpan -Hours 2) `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 $Principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
 
