@@ -2,7 +2,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, View } from 'react-native';
+import { Alert, Platform, Switch, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { deleteAccount, linkAccount, signInExisting, signOut, type LinkOutcome, type Provider } from '../lib/accountLink';
 import { useAuth } from '../lib/auth';
@@ -11,7 +11,8 @@ import { supabase } from '../lib/supabase';
 import { isToss } from '../lib/target';
 import { tossOpenURL } from '../lib/toss';
 import { radius, useTheme } from '../theme';
-import { Banner, Button, Card, IconBubble, LargeTitle, Pressy, PushScreen, Row, Spinner, Txt } from '../ui/kit';
+import { haptic, loadHapticsEnabled, setHapticsEnabled } from '../ui/haptics';
+import { Banner, Button, Card, Group, IconBubble, LargeTitle, Pressy, PushScreen, Row, SectionLabel, Spinner, Txt } from '../ui/kit';
 
 const NAME: Record<Provider, string> = { apple: 'Apple', google: 'Google' };
 
@@ -33,6 +34,22 @@ export default function AccountScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   // 토스 미니앱 WebView 는 window.confirm 지원이 보장되지 않아 화면 안에서 한 번 더 묻는다
   const [confirming, setConfirming] = useState(false);
+  // 진동(햅틱) 설정 — 기기에만 저장. iOS 는 무음 스위치를 읽을 수 없어 이 설정으로만 끈다
+  const [hapticsOn, setHapticsOn] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    void loadHapticsEnabled().then((v) => {
+      if (alive) setHapticsOn(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const toggleHaptics = (v: boolean) => {
+    setHapticsOn(v);
+    setHapticsEnabled(v);
+    if (v) haptic.select();
+  };
 
   // 아직 익명으로 보이면 서버의 최신 상태로 세션을 새로 받는다 — 다른 곳(웹 리디렉트 등)에서 연결이 끝났는데
   // 이 기기 세션만 옛날 것이면 '연결 안 됨'으로 보이기 때문. 갱신되면 useAuth 가 새 세션을 받는다
@@ -243,6 +260,24 @@ export default function AccountScreen() {
           {deleteSection}
         </>
       )}
+
+      {/* 일반 웹에는 진동이 없어 네이티브·토스 미니앱에서만 보인다 */}
+      {Platform.OS !== 'web' || isToss ? (
+        <View style={{ gap: 6 }}>
+          <SectionLabel>설정</SectionLabel>
+          <Group>
+            <Row last minHeight={52}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Txt variant="callout">진동</Txt>
+                {Platform.OS === 'android' ? (
+                  <Txt variant="footnote" weight="400" color={c.text2}>휴대폰이 무음 모드일 때는 울리지 않아요</Txt>
+                ) : null}
+              </View>
+              <Switch value={hapticsOn} onValueChange={toggleHaptics} trackColor={{ true: c.accentFill, false: c.fill }} accessibilityLabel="진동" />
+            </Row>
+          </Group>
+        </View>
+      ) : null}
 
       {/* 웹에서 Google/Apple 에 다녀오거나 새로고침하면 계정 화면이 첫 화면이 되어 뒤로 갈 곳이 없다 → 홈으로 나가는 길 */}
       {!isToss && !router.canGoBack() ? (
