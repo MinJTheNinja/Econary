@@ -6,18 +6,20 @@
 /** 하루 경계를 정하는 시간대. 일일 배정·연속 학습 계산 모두 이 기준. */
 export const STUDY_TIMEZONE = 'Asia/Seoul';
 
-/** 간격 반복(SM-2 변형) 파라미터 */
-export const SRS = {
-  initialEase: 2.5,
-  minEase: 1.3,
-  maxEase: 3.0,
-  easeBonusOnCorrect: 0.1,
-  easePenaltyOnWrong: 0.2,
-  /** 정답 n회째의 고정 간격(일). 그 이후는 interval × ease */
-  fixedIntervals: [1, 3] as readonly number[],
-  maxIntervalDays: 120,
-  /** 연속 정답이 이 횟수에 도달하면 복습 졸업 (PRD 5: 최대 복습 횟수 미확정) */
-  maxReps: 8,
+/**
+ * 복습 간격: 망각 곡선 기반 기억 모델 (FSRS-5, core/memory.ts).
+ * 단어마다 '안정도'(기억이 90% 로 떨어지기까지 걸리는 일수)와 '난이도'를 추적하고,
+ * 기억 유지율이 targetRetention 으로 떨어지는 날 복습한다.
+ */
+export const MEMORY = {
+  /** 복습 시점의 목표 기억 유지율. 0.9 = '열 번 중 아홉 번은 떠올릴 수 있을 때' 복습 */
+  targetRetention: 0.9,
+  maxIntervalDays: 365,
+  /** FSRS-5 기본 파라미터 (open-spaced-repetition, 수억 건 복습 기록으로 학습된 값) */
+  w: [
+    0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192,
+    1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621,
+  ] as readonly number[],
 } as const;
 
 /**

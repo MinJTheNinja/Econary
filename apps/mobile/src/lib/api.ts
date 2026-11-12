@@ -11,6 +11,9 @@ import {
   computeTodayProgress,
   scheduleNextReview,
   pullForwardReview,
+  currentRetention,
+  easeFromDifficulty,
+  shuffle,
   studyDate,
   weekStart,
   addDays,
@@ -22,6 +25,7 @@ import {
   type Plan,
   type PlanPhase,
   type ReviewState,
+  type ScheduledReview,
   type ScheduleRow,
   type TodayProgress,
 } from '@tesat/core';
@@ -64,15 +68,29 @@ export interface Explanation {
   source: string;
 }
 
-/** 검수 승인된 시사 퀴즈 (정답 없음) 또는 뜻 고르기 퀴즈 */
+/**
+ * 검수 승인된 시사 퀴즈 (정답 없음) 또는 뜻 고르기 퀴즈.
+ * 시사 퀴즈 보기는 열 때마다 섞는다: choices[i] = 원래 보기[order[i]] (서버 채점은 원래 순서 기준).
+ */
 export type Quiz =
-  | { kind: 'content'; contentId: number; question: string; choices: string[] }
+  | { kind: 'content'; contentId: number; question: string; choices: string[]; order: number[] }
   | { kind: 'meaning'; question: string; choices: { wordId: number; text: string }[] };
 
 export interface QuizResult {
   isCorrect: boolean;
+  /** 화면에 보이는 순서 기준 정답 위치 */
+  answerIndex: number;
   answerText: string;
+  /** 문제 전체 해설 (시사 퀴즈) */
   explanation: string | null;
+  /** 내가 고른 보기에 대한 설명 (시사 퀴즈의 선지별 설명) */
+  selectedNote: string | null;
+  /** 정답 보기에 대한 설명 */
+  answerNote: string | null;
+  /** 뜻 퀴즈에서 틀렸을 때: 내가 고른 뜻의 실제 단어 */
+  chosenTerm: string | null;
+  /** 화면 순서 기준 선지별 설명 (없으면 null) — 같은 문제를 다시 채점할 때 쓴다 */
+  notes: (string | null)[];
 }
 
 /** 네트워크/서버 오류: 결과가 확정되지 않았으니 같은 시도 id 로 재시도해야 한다 (PRD 4.1) */
@@ -236,17 +254,14 @@ export async function markUnknown(userId: string, wordIds: number[]): Promise<vo
   const prev = check(
     await supabase
       .from('review_schedule')
-      .select('word_id, due_date, interval_days, ease, reps, lapses, graduated')
+      .select(`word_id, due_date, ${STATE_COLUMNS}`)
       .in('word_id', wordIds),
-  ) as { word_id: number; due_date: string; interval_days: number; ease: number; reps: number; lapses: number; graduated: boolean }[];
+  ) as (StateRow & { word_id: number; due_date: string })[];
   const byId = new Map(prev.map((r) => [r.word_id, r]));
   const fresh: Record<string, unknown>[] = [];
   for (const wordId of wordIds) {
     const r = byId.get(wordId);
-    const next = pullForwardReview(
-      r ? { dueDate: r.due_date, intervalDays: r.interval_days, ease: Number(r.ease), reps: r.reps, lapses: r.lapses, graduated: r.graduated } : null,
-      today,
-    );
+    const next = pullForwardReview(r ? { ...toState(r), intervalDays: r.interval_days, dueDate: r.due_date } : null, today);
     if (r) {
       if (next.dueDate === r.due_date && next.graduated === r.graduated) continue;
       checkMaybe(
@@ -255,7 +270,8 @@ export async function markUnknown(userId: string, wordIds: number[]): Promise<vo
     } else {
       fresh.push({
         user_id: userId, word_id: wordId, due_date: next.dueDate, interval_days: next.intervalDays,
-        ease: next.ease, reps: next.reps, lapses: next.lapses, graduated: next.graduated, last_context: 'new',
+        ease: easeFromDifficulty(next.difficulty), reps: next.reps, lapses: next.lapses, graduated: next.graduated,
+        last_context: 'new',
       });
     }
   }
@@ -287,7 +303,11 @@ export async function getQuiz(wordId: number, term: string): Promise<Quiz> {
       .order('source_date', { ascending: false, nullsFirst: false })
       .limit(1),
   ) as { id: number; body: string; choices: string[] }[];
-  if (rows[0]) return { kind: 'content', contentId: rows[0].id, question: rows[0].body, choices: rows[0].choices };
+  if (rows[0]) {
+    const original = rows[0].choices;
+    const order = shuffle(original.map((_, i) => i));
+    return { kind: 'content', contentId: rows[0].id, question: rows[0].body, choices: order.map((i) => original[i]), order };
+  }
 
   const choices = check(await supabase.rpc('get_meaning_quiz', { p_word_id: wordId })) as { choice_word_id: number; text: string }[];
   return {
@@ -313,12 +333,25 @@ export async function submitQuiz(
       const { data, error } = await supabase.rpc('submit_quiz_attempt', {
         p_client_attempt_id: clientAttemptId,
         p_content_id: quiz.contentId,
-        p_selected_index: selected,
+        p_selected_index: quiz.order[selected], // 섞인 화면 순서 → 원래 순서
         p_context: context,
       });
       if (error) throw error;
-      const r = (data as { is_correct: boolean; answer_index: number; answer_explanation: string }[])[0];
-      return { isCorrect: r.is_correct, answerText: quiz.choices[r.answer_index], explanation: r.answer_explanation };
+      const r = (data as {
+        is_correct: boolean; answer_index: number; answer_explanation: string; choice_notes: string[] | null;
+      }[])[0];
+      const answerIndex = quiz.order.indexOf(r.answer_index);
+      const note = (orig: number) => r.choice_notes?.[orig]?.trim() || null;
+      return {
+        isCorrect: r.is_correct,
+        answerIndex,
+        answerText: quiz.choices[answerIndex],
+        explanation: r.answer_explanation,
+        selectedNote: note(quiz.order[selected]),
+        answerNote: note(r.answer_index),
+        chosenTerm: null,
+        notes: quiz.order.map(note),
+      };
     }
     const { data, error } = await supabase.rpc('submit_meaning_quiz', {
       p_client_attempt_id: clientAttemptId,
@@ -327,11 +360,29 @@ export async function submitQuiz(
       p_context: context,
     });
     if (error) throw error;
-    const r = (data as { is_correct: boolean; answer_text: string }[])[0];
-    return { isCorrect: r.is_correct, answerText: r.answer_text, explanation: null };
+    const r = (data as { is_correct: boolean; answer_word_id: number; answer_text: string }[])[0];
+    const answerIndex = quiz.choices.findIndex((c) => c.wordId === r.answer_word_id);
+    const chosenId = quiz.choices[selected].wordId;
+    // 틀렸으면 내가 고른 뜻이 원래 어떤 단어의 뜻인지 알려 준다 (실패해도 결과는 그대로)
+    const chosenTerm = r.is_correct ? null : ((await getWords([chosenId]).catch(() => null))?.get(chosenId)?.term ?? null);
+    return {
+      isCorrect: r.is_correct,
+      answerIndex,
+      answerText: r.answer_text,
+      explanation: null,
+      selectedNote: null,
+      answerNote: null,
+      chosenTerm,
+      notes: [],
+    };
   } catch (e) {
     throw new UnconfirmedError(e instanceof Error ? e.message : String(e));
   }
+}
+
+/** 이미 받은 결과로 같은 문제를 다시 채점 (학습 세션의 '다시' 문제 — 서버에 다시 기록하지 않는다) */
+export function regrade(first: QuizResult, selected: number): QuizResult {
+  return { ...first, isCorrect: selected === first.answerIndex, selectedNote: first.notes[selected] ?? null, chosenTerm: null };
 }
 
 // ───────── 복습 일정 (PRD 5: 퀴즈 결과 → 다음 복습일) ─────────
@@ -349,11 +400,12 @@ export interface ReviewItem extends ScheduleRow {
  * (신규 학습 퀴즈로 정해진 첫 일정은 복습 완료가 아님). today 가 있으면 오늘 목록에 필요한 행만 가져온다.
  */
 async function fetchSchedule(today?: string): Promise<{ rows: ScheduleRow[]; terms: Map<number, string> }> {
-  let query = supabase.from('review_schedule').select('word_id, due_date, graduated, last_reviewed_at, last_context, words(term)');
+  const now = today ?? studyDate();
+  let query = supabase.from('review_schedule').select('word_id, due_date, graduated, last_reviewed_at, last_context, stability, words(term)');
   if (today) query = query.or(`due_date.lte.${today},last_reviewed_at.gte.${new Date(Date.now() - 2 * 86_400_000).toISOString()}`);
   const raw = check(await query) as unknown as {
     word_id: number; due_date: string; graduated: boolean; last_reviewed_at: string | null;
-    last_context: 'new' | 'review'; words: { term: string } | null;
+    last_context: 'new' | 'review'; stability: number | string | null; words: { term: string } | null;
   }[];
   return {
     terms: new Map(raw.map((r) => [r.word_id, r.words?.term ?? ''])),
@@ -363,6 +415,13 @@ async function fetchSchedule(today?: string): Promise<{ rows: ScheduleRow[]; ter
       graduated: r.graduated,
       lastReviewedDate:
         r.last_context === 'review' && r.last_reviewed_at ? studyDate(new Date(r.last_reviewed_at)) : null,
+      retention: currentRetention(
+        {
+          stability: r.stability === null ? null : Number(r.stability),
+          lastReviewDate: r.last_reviewed_at ? studyDate(new Date(r.last_reviewed_at)) : null,
+        },
+        now,
+      ),
     })),
   };
 }
@@ -429,28 +488,53 @@ export async function getWeek(): Promise<{ days: DayCell[]; streak: number }> {
   return { days: computeDayStatuses(assignments, mon, addDays(mon, 6), today), streak: computeStreak(assignments, today) };
 }
 
-/** 확정된 퀴즈 결과로 다음 복습일을 계산해 저장. 실패해도 퀴즈 결과 자체는 이미 서버에 기록돼 있다. */
+// review_schedule 의 기억 상태 열 (core/memory ReviewState)
+const STATE_COLUMNS = 'interval_days, ease, reps, lapses, graduated, stability, difficulty, last_reviewed_at';
+type StateRow = {
+  interval_days: number; ease: number | string; reps: number; lapses: number; graduated: boolean;
+  stability: number | string | null; difficulty: number | string | null; last_reviewed_at: string | null;
+};
+const toState = (r: StateRow): ReviewState => ({
+  stability: r.stability === null ? null : Number(r.stability),
+  difficulty: r.difficulty === null ? null : Number(r.difficulty),
+  reps: r.reps,
+  lapses: r.lapses,
+  graduated: r.graduated,
+  lastReviewDate: r.last_reviewed_at ? studyDate(new Date(r.last_reviewed_at)) : null,
+});
+
+// 시험일 (복습이 시험 뒤로 밀리지 않게). 화면을 오가며 여러 번 부르므로 잠깐 기억해 둔다
+let examCache: { at: number; date: string | null } | null = null;
+async function myExamDate(): Promise<string | null> {
+  if (examCache && Date.now() - examCache.at < 5 * 60_000) return examCache.date;
+  const { data } = await supabase.from('profiles').select('exam_rounds(exam_date)').maybeSingle();
+  const date = (data as { exam_rounds: { exam_date: string } | null } | null)?.exam_rounds?.exam_date ?? null;
+  examCache = { at: Date.now(), date };
+  return date;
+}
+
+/**
+ * 확정된 퀴즈 결과로 기억 상태(core/memory)를 갱신하고 다음 복습일을 저장한다.
+ * 실패해도 퀴즈 결과 자체는 이미 서버에 기록돼 있다. 정해진 일정을 돌려준다 (새 학습을 다시 푼 경우 null).
+ */
 export async function recordReview(
   userId: string,
   wordId: number,
   isCorrect: boolean,
   context: 'new' | 'review',
-): Promise<void> {
-  const prev = checkMaybe(
-    await supabase
-      .from('review_schedule')
-      .select('interval_days, ease, reps, lapses, graduated')
-      .eq('word_id', wordId)
-      .maybeSingle(),
-  ) as { interval_days: number; ease: number; reps: number; lapses: number; graduated: boolean } | null;
+): Promise<ScheduledReview | null> {
+  const [prevRaw, examDate] = await Promise.all([
+    supabase.from('review_schedule').select(STATE_COLUMNS).eq('word_id', wordId).maybeSingle(),
+    myExamDate().catch(() => null),
+  ]);
+  const prev = checkMaybe(prevRaw) as StateRow | null;
 
   // 신규 학습 퀴즈를 같은 날 다시 풀어도 일정이 또 늘어나지 않도록, 'new' 는 첫 일정만 만든다
-  if (context === 'new' && prev) return;
+  // (플래시카드 '모르겠어요'로 먼저 생긴 빈 일정은 예외: 기억 상태가 아직 없다)
+  if (context === 'new' && prev && prev.stability !== null) return null;
 
-  const state: ReviewState = prev
-    ? { intervalDays: prev.interval_days, ease: Number(prev.ease), reps: prev.reps, lapses: prev.lapses, graduated: prev.graduated }
-    : NEW_REVIEW_STATE;
-  const next = scheduleNextReview(state, isCorrect, studyDate());
+  const state: ReviewState = prev ? toState(prev) : NEW_REVIEW_STATE;
+  const next = scheduleNextReview(state, isCorrect, studyDate(), { examDate });
 
   checkMaybe(
     await supabase.from('review_schedule').upsert({
@@ -458,7 +542,9 @@ export async function recordReview(
       word_id: wordId,
       due_date: next.dueDate,
       interval_days: next.intervalDays,
-      ease: next.ease,
+      ease: easeFromDifficulty(next.difficulty),
+      stability: next.stability,
+      difficulty: next.difficulty,
       reps: next.reps,
       lapses: next.lapses,
       graduated: next.graduated,
@@ -466,6 +552,7 @@ export async function recordReview(
       last_context: context, // 신규 학습 퀴즈는 '오늘 복습 완료'로 세지 않는다
     }),
   );
+  return next;
 }
 
 // ───────── 오류 신고 (PRD 7.1) ─────────

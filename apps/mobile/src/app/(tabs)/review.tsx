@@ -11,7 +11,13 @@ import {
 const openReview = (wordId: number) =>
   router.push({ pathname: '/quiz/[wordId]', params: { wordId: String(wordId), context: 'review' } });
 
-/** 오늘의 복습 (PRD 5.1) — 디자인 '복습' 보드 */
+/** 기억 유지율 표시: 지금 떠올릴 확률 (core/memory) */
+const pct = (r: number | null | undefined) => (r === null || r === undefined ? null : Math.round(r * 100));
+
+/**
+ * 오늘의 복습 (PRD 5.1) — 디자인 '복습' 보드.
+ * 망각 곡선으로 기억 유지율이 90% 아래로 내려온 단어가 나오고, 많이 잊었을 단어부터 보여 준다.
+ */
 export default function ReviewScreen() {
   const { c } = useTheme();
   const { data, error, reload } = useLoad(getTodayReviews, []);
@@ -59,7 +65,9 @@ export default function ReviewScreen() {
     <TabScreen>
       <View style={{ gap: 6, paddingHorizontal: 4, paddingBottom: 8 }}>
         <LargeTitle count={`${data.done.length}/${total}`}>오늘의 복습</LargeTitle>
-        <Txt variant="subhead" color={c.text2}>정답이면 다음 복습까지 간격이 늘고, 틀리면 내일 다시 나와요.</Txt>
+        <Txt variant="subhead" color={c.text2}>
+          기억이 흐려질 때쯤 다시 떠올리면 오래 남아요. 많이 잊었을 단어부터 보여 드려요.
+        </Txt>
       </View>
 
       {first ? (
@@ -72,12 +80,18 @@ export default function ReviewScreen() {
         <>
           <SectionLabel>남은 복습 {data.pending.length}</SectionLabel>
           <Group>
-            {data.pending.map((r, i) => (
-              <Row key={r.wordId} last={i === data.pending.length - 1} onPress={() => openReview(r.wordId)} accessibilityLabel={`${r.term}, 복습 전`}>
-                <Txt style={{ flex: 1 }}>{r.term}</Txt>
-                <Badge label="복습 전" tone="neutral" />
-              </Row>
-            ))}
+            {data.pending.map((r, i) => {
+              const p = pct(r.retention);
+              return (
+                <Row
+                  key={r.wordId} last={i === data.pending.length - 1} onPress={() => openReview(r.wordId)}
+                  accessibilityLabel={`${r.term}, 복습 전${p !== null ? `, 기억 유지율 ${p}퍼센트` : ''}`}
+                >
+                  <Txt style={{ flex: 1 }}>{r.term}</Txt>
+                  <Badge label={p !== null ? `기억 ${p}%` : '복습 전'} tone={p !== null && p < 70 ? 'warning' : 'neutral'} />
+                </Row>
+              );
+            })}
           </Group>
         </>
       )}

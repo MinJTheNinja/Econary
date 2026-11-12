@@ -110,6 +110,7 @@ function Gate() {
         <Stack.Screen name="report" options={{ ...sheet, sheetAllowedDetents: [0.93] }} />
         <Stack.Screen name="words" options={{ ...sheet, sheetAllowedDetents: [0.85] }} />
         <Stack.Screen name="cards" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+        <Stack.Screen name="session" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!inApp} redirectTo="/">
         <Stack.Screen name="welcome" options={{ headerShown: false }} />

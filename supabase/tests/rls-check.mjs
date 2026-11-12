@@ -38,6 +38,11 @@ await db.exec(`insert into word_contents (word_id, kind, body, choices, answer_i
   values (${wid},'quiz','금리를 올리면?','["물가 하락 압력","물가 상승 압력"]',0,'긴축','hankyung','approved'),
          (${wid},'explanation','설명','null',null,null,'ytn','pending')`);
 const quizId = (await q(`select id from word_contents where kind='quiz'`))[0].id;
+await db.exec(`update word_contents set choice_notes = '["돈줄이 죄어 물가가 내려가요","반대 방향이에요"]' where id = ${quizId}`);
+try { await db.exec(`update word_contents set choice_notes = '["하나뿐"]' where id = ${quizId}`); console.log('FAIL notes length mismatch'); }
+catch { console.log('choice notes must match choices ✓'); }
+console.log('short_meaning keeps whole first sentence:',
+  (await q(`select short_meaning(repeat('가', 150) || '. 둘째 문장.') s`))[0].s === '가'.repeat(150) + '.' ? '✓' : 'FAIL');
 
 // act as learner
 await db.exec(`set test.uid = '${U}'; set role authenticated;`);
@@ -47,7 +52,8 @@ console.log('assigned (beginner=5):', a.length, a.map(r => r.word_id).join(','))
 const a2 = await q('select * from get_or_create_today_assignment()');
 console.log('idempotent:', a2.length === a.length);
 console.log('inactive excluded:', !(await q(`select 1 from words where term='비활성어' and id = any($1)`, [a.map(r=>r.word_id)])).length);
-console.log('first assigned has quiz (금리):', a[0].word_id === wid);
+// 고르기는 우선순위대로(검수 퀴즈 있는 금리 포함), 순서만 무작위
+console.log('quiz word picked (금리):', a.some((r) => r.word_id === wid) ? '✓' : 'FAIL');
 console.log('learner sees approved content only:', (await q('select id, kind from word_contents')).map(r=>r.kind).join(','));
 try { await q('select answer_index from word_contents'); console.log('FAIL answer visible'); } catch { console.log('answer_index hidden from learner ✓'); }
 try { await db.exec(`update profiles set role='content_admin'`); console.log('FAIL role escalation'); } catch { console.log('role escalation blocked ✓'); }
@@ -56,6 +62,8 @@ const cid = '22222222-2222-2222-2222-222222222222';
 const r1 = await q(`select * from submit_quiz_attempt($1,$2,1,'new')`, [cid, quizId]);
 const r2 = await q(`select * from submit_quiz_attempt($1,$2,0,'new')`, [cid, quizId]);
 console.log('submit:', r1[0], '\nretry same id:', r2[0]);
+console.log('choice notes returned after submit:', r1[0].choice_notes?.[0] === '돈줄이 죄어 물가가 내려가요' ? '✓' : 'FAIL ' + JSON.stringify(r1[0].choice_notes));
+try { await q('select choice_notes from word_contents'); console.log('FAIL choice notes visible before submit'); } catch { console.log('choice notes hidden before submit ✓'); }
 console.log('attempt rows:', (await q('select count(*)::int n from quiz_attempts'))[0].n);
 console.log('assignment completed:', (await q(`select quiz_completed_at is not null c from daily_assignments where word_id=${wid}`))[0].c);
 try { await db.exec(`insert into quiz_attempts (user_id, client_attempt_id, word_id, content_id, context, selected_index, is_correct) values ('${U}', gen_random_uuid(), ${wid}, ${quizId}, 'new', 0, true)`); console.log('FAIL direct insert'); } catch { console.log('direct attempt insert blocked ✓'); }

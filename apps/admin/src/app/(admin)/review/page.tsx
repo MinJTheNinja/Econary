@@ -17,7 +17,7 @@ export default async function ReviewPage() {
   await requireAdmin();
   const { data, error } = await adminDb()
     .from('word_contents')
-    .select('id, word_id, kind, body, choices, answer_index, answer_explanation, topic, source, source_url, source_title, source_date, created_at, words(term, meaning, needs_check)')
+    .select('id, word_id, kind, body, choices, answer_index, answer_explanation, choice_notes, topic, source, source_url, source_title, source_date, created_at, words(term, meaning, needs_check)')
     .eq('review_status', 'pending')
     .order('created_at')
     .order('kind')

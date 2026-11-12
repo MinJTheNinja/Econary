@@ -13,6 +13,8 @@ export interface ScheduleRow {
   graduated: boolean;
   /** 마지막 복습 날짜 (학습 시간대 기준). 아직 복습 안 했으면 null */
   lastReviewedDate: DateStr | null;
+  /** 오늘 기준 기억 유지율 (0~1, core/memory). 모르면 null */
+  retention?: number | null;
 }
 
 export interface AttemptRow {
@@ -43,7 +45,14 @@ export function buildTodayReviewList(schedule: ScheduleRow[], today: DateStr) {
   const doneIds = new Set(done.map((s) => s.wordId));
   const pending = schedule
     .filter((s) => !s.graduated && s.dueDate <= today && !doneIds.has(s.wordId))
-    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : a.wordId - b.wordId));
+    // 지금 가장 많이 잊었을 단어(기억 유지율 낮은 순)부터. 유지율을 모르면 기한 순
+    .sort((a, b) => {
+      const ra = a.retention ?? null;
+      const rb = b.retention ?? null;
+      if (ra !== null && rb !== null && ra !== rb) return ra - rb;
+      if (a.dueDate !== b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
+      return a.wordId - b.wordId;
+    });
   return { pending, done, isEmpty: pending.length === 0 && done.length === 0 };
 }
 

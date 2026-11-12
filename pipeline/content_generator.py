@@ -44,8 +44,14 @@ TOOL = {
                             "choices": {"type": "array", "items": {"type": "string"}, "description": "보기 정확히 4개, 각 50자 이내"},
                             "answer_index": {"type": "integer", "description": "정답 보기 번호 (0부터)"},
                             "answer_explanation": {"type": "string", "description": "정답 해설 (150자 이내)"},
+                            "choice_notes": {
+                                "type": "array", "items": {"type": "string"},
+                                "description": "보기마다 한 줄 설명, choices 와 같은 순서·같은 개수(4). 각 80자 이내. "
+                                               "정답 보기는 왜 맞는지, 오답 보기는 그 보기가 실제로 어떤 개념·상황인지와 왜 이 문제의 답이 아닌지.",
+                            },
                         },
-                        "required": ["word_id", "topic", "explanation", "question", "choices", "answer_index", "answer_explanation"],
+                        "required": ["word_id", "topic", "explanation", "question", "choices", "answer_index", "answer_explanation",
+                                     "choice_notes"],
                     },
                 }
             },
@@ -65,11 +71,13 @@ SYSTEM_PROMPT = """\
 - 퀴즈는 단어의 의미, 또는 시사 맥락에서의 쓰임을 묻는다. 기사 원문을 지문으로 제시하지 않는다.
 - 오답 보기는 헷갈리기 쉬운 유사 개념(제공된 유사개념 목록 활용)으로 그럴듯하게. 정답은 하나만 명확해야 한다.
 - 정답 위치(answer_index)는 0~3 사이에서 골고루 섞는다.
+- choice_notes: 학습자가 그 보기를 골랐을 때 보여 줄 설명이다. 보기 문장을 되풀이하지 말고 새 정보를 준다.
+  오답 보기는 "그건 ○○(다른 개념)의 설명이에요 — △△라서 이 문제와 달라요"처럼 그 보기의 정체와 차이를 짚는다.
 - 모든 항목을 submit_word_contents 로 한 번에 제출한다.
 """
 
 _RETRY_DELAYS_SEC = [1, 2, 4, 8]
-_COMPLETION_TOKENS = 3500
+_COMPLETION_TOKENS = 4000  # 선지별 설명(choice_notes)까지
 
 
 @dataclass
@@ -133,6 +141,15 @@ def validate_item(item: dict) -> str | None:
     return None
 
 
+def clean_notes(item: dict) -> list[str] | None:
+    """선지별 설명: 보기와 개수가 맞고 비어 있지 않을 때만 쓴다 (아니면 없이 저장 — 앱이 해설로 대체)."""
+    notes = item.get("choice_notes")
+    if not isinstance(notes, list) or len(notes) != len(item.get("choices") or []):
+        return None
+    out = [str(n).strip()[:120] for n in notes]
+    return out if all(out) else None
+
+
 def _build_message(tasks: list[WordTask]) -> str:
     blocks = []
     for t in tasks:
@@ -192,9 +209,10 @@ def to_rows(task: WordTask, item: dict) -> list[dict]:
     return [
         # PostgREST 일괄 insert 는 모든 행의 키가 같아야 해서 퀴즈 전용 칸도 null 로 채운다
         {**common, "kind": "explanation", "body": item["explanation"].strip(),
-         "choices": None, "answer_index": None, "answer_explanation": None},
+         "choices": None, "answer_index": None, "answer_explanation": None, "choice_notes": None},
         {**common, "kind": "quiz", "body": item["question"].strip(), "choices": [str(c).strip() for c in item["choices"]],
-         "answer_index": item["answer_index"], "answer_explanation": item["answer_explanation"].strip()},
+         "answer_index": item["answer_index"], "answer_explanation": item["answer_explanation"].strip(),
+         "choice_notes": clean_notes(item)},
     ]
 
 

@@ -10,6 +10,8 @@ export interface PendingContent {
   choices: string[] | null;
   answer_index: number | null;
   answer_explanation: string | null;
+  /** 보기마다 '고르면 보여 줄 설명' (없으면 null) */
+  choice_notes: string[] | null;
   topic: string | null;
 }
 
@@ -37,10 +39,16 @@ export function ReviewCard({ c }: { c: PendingContent }) {
       {c.kind === 'quiz' && (
         <>
           {[0, 1, 2, 3].map((i) => (
-            <label key={i} className="row">
-              <input type="radio" name="answer_index" value={i} defaultChecked={c.answer_index === i} title="정답" />
-              <input name={`choice${i}`} defaultValue={c.choices?.[i] ?? ''} placeholder={`보기 ${i + 1}`} style={{ flex: 1 }} />
-            </label>
+            <div key={i} style={{ display: 'grid', gap: 4 }}>
+              <label className="row">
+                <input type="radio" name="answer_index" value={i} defaultChecked={c.answer_index === i} title="정답" />
+                <input name={`choice${i}`} defaultValue={c.choices?.[i] ?? ''} placeholder={`보기 ${i + 1}`} style={{ flex: 1 }} />
+              </label>
+              <input
+                name={`note${i}`} defaultValue={c.choice_notes?.[i] ?? ''} style={{ marginLeft: 24, fontSize: 13 }}
+                placeholder={c.answer_index === i ? '이 보기가 정답인 이유' : '이 보기를 고르면 보여 줄 설명 (어떤 개념이라 틀렸는지)'}
+              />
+            </div>
           ))}
           <textarea name="answer_explanation" defaultValue={c.answer_explanation ?? ''} rows={2} placeholder="정답 해설" />
         </>

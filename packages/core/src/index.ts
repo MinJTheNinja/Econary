@@ -1,5 +1,6 @@
 export * from './config';
 export * from './date';
-export * from './srs';
+export * from './memory';
+export * from './shuffle';
 export * from './progress';
 export * from './plan';

@@ -26,13 +26,19 @@ export async function decide(_: ReviewState, form: FormData): Promise<ReviewStat
     patch.body = body;
     patch.topic = String(form.get('topic') ?? '').trim() || null;
     if (kind === 'quiz') {
-      const choices = [0, 1, 2, 3].map((i) => String(form.get(`choice${i}`) ?? '').trim()).filter(Boolean);
+      // 보기와 선지별 설명은 같은 칸끼리 묶어서, 빈 보기를 빼도 짝이 어긋나지 않게
+      const pairs = [0, 1, 2, 3]
+        .map((i) => ({ choice: String(form.get(`choice${i}`) ?? '').trim(), note: String(form.get(`note${i}`) ?? '').trim() }))
+        .filter((p) => p.choice);
+      const choices = pairs.map((p) => p.choice);
+      // 설명은 전부 있을 때만 저장 (일부만 있으면 앱이 해설로 대체하도록 비운다)
+      const choiceNotes = pairs.every((p) => p.note) ? pairs.map((p) => p.note) : null;
       if (choices.length < 2) return { error: '보기가 2개 이상 필요합니다.' };
       const answer = Number(form.get('answer_index'));
       if (!(answer >= 0 && answer < choices.length)) return { error: '정답을 선택하세요.' };
       const explanation = String(form.get('answer_explanation') ?? '').trim();
       if (!explanation) return { error: '정답 해설이 필요합니다.' };
-      Object.assign(patch, { choices, answer_index: answer, answer_explanation: explanation });
+      Object.assign(patch, { choices, answer_index: answer, answer_explanation: explanation, choice_notes: choiceNotes });
     }
   }
 

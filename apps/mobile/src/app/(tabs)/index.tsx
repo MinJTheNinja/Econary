@@ -109,7 +109,7 @@ export default function TodayScreen() {
           term={next.w?.term ?? ''}
           english={next.w?.english_name}
           action={done || next.a.content_viewed_at ? '이어서 학습' : '학습 시작'}
-          onPress={() => router.push(`/study/${next.a.word_id}`)}
+          onPress={() => router.push('/session')}
           accessibilityLabel={`${done || next.a.content_viewed_at ? '이어서 학습' : '학습 시작'}: ${next.w?.term ?? ''}, ${nextIdx + 1}번째 단어`}
         />
       ) : (

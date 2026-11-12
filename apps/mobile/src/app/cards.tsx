@@ -1,3 +1,4 @@
+import { shuffle } from '@tesat/core';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, Switch, View } from 'react-native';
@@ -33,7 +34,7 @@ function flushUnknown(pending: Set<number>, userId: string | undefined) {
   if (userId && ids.length) markUnknown(userId, ids).catch((e) => console.warn('[cards] markUnknown', e));
 }
 
-const shuffled =<T,>(xs: T[]) => [...xs].sort(() => Math.random() - 0.5);
+const shuffled = <T,>(xs: T[]) => shuffle(xs);
 
 /**
  * 플래시카드 (시안 5번): 오늘 단어로 카드 넘기기 / 짝 맞추기.

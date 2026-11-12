@@ -276,9 +276,11 @@ export function ConceptDiagram({ nodes, kind, term }: { nodes: string[]; kind: '
 
 // ───────── 접힘 ('요즘 뉴스에서') ─────────
 
-export function Accordion({ header, children, label }: { header: ReactNode; children: ReactNode; label: string }) {
+export function Accordion({
+  header, children, label, initiallyOpen = false,
+}: { header: ReactNode; children: ReactNode; label: string; initiallyOpen?: boolean }) {
   const { c } = useTheme();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   return (
     <View style={{ gap: 8 }}>
       <Pressy
